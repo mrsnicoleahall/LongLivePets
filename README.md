@@ -4,10 +4,10 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.1 — early but working foundation.** The core (save / load /
-> rename / delete teams, slash commands, and a movable window) is implemented.
-> More is on the roadmap below. This is honest about where it is — it is **not**
-> a finished clone of any other addon.
+> **Status: v0.3 — the team-management core is feature-complete.** Everything
+> below is implemented and covered by an automated test suite (29 checks). The
+> deep *collection-browser* layer (full pet roster UI, pet card, ability search,
+> markers, send-to-player) is still on the roadmap — see the bottom.
 
 This is an **original, independent project**. It is written from scratch and
 contains **no code from Rematch or any other addon**. See
@@ -15,27 +15,48 @@ contains **no code from Rematch or any other addon**. See
 
 ---
 
-## What it does today
+## Features
 
-- **Save the current team** — slot three pets the normal way, then save them
-  under a name.
-- **Load a team** — puts those exact pets (and their chosen abilities) back into
-  your battle slots with one click.
-- **Manage teams** — rename, delete, and list your saved teams.
-- **A small movable window** plus a full set of `/llp` slash commands.
+- **Teams** — save the slotted pets (with their chosen abilities) as a named
+  team and reload them in one click. Rename, delete, list.
+- **Groups** — organize teams into folders; the window shows them grouped.
+- **Notes** — attach a note to any team.
+- **Win/loss record** — per-team W-L, auto-tracked at the end of a battle (plus
+  a manual `record` command).
+- **Targets** — bind a team to a tamer/NPC; optionally auto-load it when you
+  target them.
+- **Leveling queue** — queue pets to level; flag a team slot as a "leveling"
+  slot and it auto-fills from the queue. Maxed pets drop off automatically.
+- **Import / export / backup** — share a team as a compact string, or back up
+  every team at once; paste to import.
+- **Counter helper** — `/llp counter <type>` tells you what beats an enemy type.
+- **Minimap button + keybinding**, a movable window, and a full `/llp` command set.
 - **Optional tdBattlePetScript link** — tag a team with a script name (requires
   the separate, MIT-licensed tdBattlePetScript addon; see below).
 
 ## Commands
 
 ```
-/llp                         open / close the window
-/llp save <name>             save the slotted pets as a team
-/llp load <name>             load a saved team
-/llp delete <name>           delete a team
-/llp rename <old> => <new>   rename a team
-/llp script <team> => <name> link a tdBattlePetScript script to a team
-/llp list                    list saved teams
+/llp                          open / close the window
+/llp save <name>              save the slotted pets as a team
+/llp load <name>              load a team
+/llp reload                   reload the current team
+/llp rename <old> => <new>    rename a team
+/llp delete <name>            delete a team
+/llp note <team> => <text>    set/clear a team note
+/llp group add <name>         create a group
+/llp group set <team> => <group>   move a team into a group
+/llp group clear <team> | rename <old> => <new> | delete <name>
+/llp queue add <slot> | list | clear      manage the leveling queue
+/llp levelslot <team> <slot> [off]        mark a slot as a leveling slot
+/llp target bind <team> [npcID] | unbind | auto on|off
+/llp export <team>            show a shareable string
+/llp import [string]          import a team or backup
+/llp backup                   export all teams
+/llp counter <type>           counter advice for an enemy type
+/llp record win|loss [team]
+/llp minimap                  toggle the minimap button
+/llp list
 ```
 
 ## Install
@@ -65,14 +86,18 @@ addon as long as DengSir's copyright and license are kept intact.
 
 ---
 
-## Roadmap (toward full parity)
+## Roadmap (the deep collection-browser layer)
 
-- Groups / folders for teams, drag-and-drop ordering
-- Target → team assignments and auto-suggestions
-- Leveling queue
-- Import / export team strings
-- Richer pet browser and filters inside the window
-- Tighter, two-way tdBattlePetScript integration (run the linked script on load)
+The team-management core is done. What's left is the big pet-collection UI:
+
+- A full pet-roster browser inside the window with live filters (Strong Vs /
+  Tough Vs / level / stats) and ability text search
+- Pet card tooltip with stats, lore, and the flip-to-back view
+- Pet markers (star / diamond / moon, etc.)
+- Drag-and-drop reordering of teams and groups
+- Send-a-team-to-another-player (addon comms)
+- Journal-integrated mode (replace the Blizzard pet journal panel)
+- Tighter two-way tdBattlePetScript integration (run the linked script on load)
 
 Contributions and bug reports welcome.
 
