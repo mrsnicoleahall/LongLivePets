@@ -55,3 +55,15 @@ function Types:CounterFor(enemyType)
         toughType     = self.NAME[WEAK[e]],
     }
 end
+
+-- The pet-family index that deals +50% to a given enemy type.
+function Types:StrongAttackerIndexVs(enemyType)
+    local e = self:ToIndex(enemyType)
+    return e and STRONG_BY_DEFENDER[e] or nil
+end
+
+-- The pet-family index that takes only -33% from a given enemy type.
+function Types:ToughTypeIndexVs(enemyType)
+    local e = self:ToIndex(enemyType)
+    return e and WEAK[e] or nil
+end

@@ -32,6 +32,8 @@ local function help()
         "/llp export <team>         show a shareable string",
         "/llp import [string]       import a team/backup",
         "/llp backup                export all teams",
+        "/llp pets                  open the pet browser",
+        "/llp find <text> | strong <type> | tough <type>",
         "/llp counter <type>        counter advice for an enemy type",
         "/llp record win|loss [team]",
         "/llp minimap               toggle the minimap button",
@@ -168,6 +170,24 @@ handlers.record = function(rest)
 end
 
 handlers.minimap = function() ns.Minimap:Toggle() end
+
+handlers.pets = function() ns.PetBrowser:Toggle() end
+
+handlers.find = function(rest)
+    local mode, arg = rest:match("^(%S+)%s+(.+)$")
+    local opts = {}
+    if mode and mode:lower() == "strong" then opts.strongVs = arg
+    elseif mode and mode:lower() == "tough" then opts.toughVs = arg
+    else opts.search = rest end
+    local pets = ns.Roster:Filter(opts)
+    if #pets == 0 then ns:Print("no matching pets."); return end
+    ns:Print(("matches (%d):"):format(#pets))
+    for i = 1, math.min(#pets, 20) do
+        local p = pets[i]
+        DEFAULT_CHAT_FRAME:AddMessage(("  %s (L%d %s)"):format(
+            p.name, p.level, ns.Types.NAME[p.petType] or "?"))
+    end
+end
 
 handlers.list = function()
     local teams = ns.Teams:List()

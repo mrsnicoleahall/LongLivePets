@@ -13,6 +13,7 @@ Core\Init.lua
 Core\Database.lua
 Core\Types.lua
 Core\Loadout.lua
+Core\Roster.lua
 Core\Groups.lua
 Core\Queue.lua
 Core\Teams.lua
@@ -20,6 +21,7 @@ Core\Targets.lua
 Core\Serialize.lua
 Core\Battle.lua
 UI\MainWindow.lua
+UI\PetBrowser.lua
 UI\Minimap.lua
 Integration\tdBattlePetScript.lua
 Core\Slash.lua

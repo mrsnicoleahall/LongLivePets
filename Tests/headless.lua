@@ -22,11 +22,12 @@ local function makeFrame()
   function f:GetScript(k) return self._scripts[k] end
   function f:CreateFontString() return makeFrame() end
   function f:CreateTexture() return makeFrame() end
-  function f:IsShown() return self._shown end
-  function f:Show() self._shown = true end
-  function f:Hide() self._shown = false end
-  function f:GetText() return self._text or "" end
-  function f:SetText(s) self._text = s end
+  -- rawget so the universal __index stub can't shadow these bookkeeping fields
+  function f:IsShown() return rawget(self, "_shown") or false end
+  function f:Show() rawset(self, "_shown", true) end
+  function f:Hide() rawset(self, "_shown", false) end
+  function f:GetText() return rawget(self, "_text") or "" end
+  function f:SetText(s) rawset(self, "_text", s) end
   setmetatable(f, { __index = function() return U end })
   return f
 end
@@ -59,11 +60,11 @@ function UnitGUID(u) return u == "target" and curTarget or nil end
 
 -- ---- pet journal mock -----------------------------------------------------
 local mockPets = {
-  ["PET-A"] = { speciesID = 100, level = 25, name = "Alpha" },
-  ["PET-B"] = { speciesID = 200, level = 10, name = "Beta" },
-  ["PET-C"] = { speciesID = 300, level = 25, name = "Gamma" },
-  ["LVL-1"] = { speciesID = 400, level = 5,  name = "Lvl1" },
-  ["LVL-2"] = { speciesID = 500, level = 8,  name = "Lvl2" },
+  ["PET-A"] = { speciesID = 100, level = 25, name = "Alpha", petType = 9,  rarity = 4 },
+  ["PET-B"] = { speciesID = 200, level = 10, name = "Beta",  petType = 6,  rarity = 3 },
+  ["PET-C"] = { speciesID = 300, level = 25, name = "Gamma", petType = 3,  rarity = 4 },
+  ["LVL-1"] = { speciesID = 400, level = 5,  name = "Lvl1",  petType = 5,  rarity = 2 },
+  ["LVL-2"] = { speciesID = 500, level = 8,  name = "Lvl2",  petType = 8,  rarity = 3 },
 }
 local petOrder = { "PET-A", "PET-B", "PET-C", "LVL-1", "LVL-2" }
 
@@ -88,7 +89,11 @@ C_PetJournal = {
     local petID = petOrder[i]
     local p = petID and mockPets[petID]
     if not p then return nil end
-    return petID, p.speciesID, true, nil, p.level
+    return petID, p.speciesID, true, nil, p.level, false, false, p.name, "icon", p.petType
+  end,
+  GetPetStats = function(petID)
+    local p = mockPets[petID]
+    return 100, 100, 10, 10, p and p.rarity or 1
   end,
   SetPetLoadOutInfo = function(slot, petID) applied[slot] = petID end,
   SetAbility = function() end,
@@ -98,8 +103,9 @@ C_PetJournal = {
 local ns = {}
 local files = {
   "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Loadout.lua",
-  "Core/Groups.lua", "Core/Queue.lua", "Core/Teams.lua", "Core/Targets.lua",
-  "Core/Serialize.lua", "Core/Battle.lua", "UI/MainWindow.lua", "UI/Minimap.lua",
+  "Core/Roster.lua", "Core/Groups.lua", "Core/Queue.lua", "Core/Teams.lua",
+  "Core/Targets.lua", "Core/Serialize.lua", "Core/Battle.lua",
+  "UI/MainWindow.lua", "UI/PetBrowser.lua", "UI/Minimap.lua",
   "Integration/tdBattlePetScript.lua", "Core/Slash.lua",
 }
 for _, f in ipairs(files) do assert(loadfile(f))("LongLivePets", ns) end
@@ -199,9 +205,21 @@ local c = ns.Types:CounterFor("Aquatic")
 check(c and c.strongAttacker and c.toughType, "counter returns advice")
 check(ns.Types:CounterFor("nonsense") == nil, "bad type rejected")
 
-print("\n[12] UI build path")
-check(pcall(function() ns.UI:Show(); ns.UI:Refresh() end), "window builds + refreshes")
+print("\n[12] roster + filters")
+mockPets["LVL-1"].level = 5   -- reset (the queue test dinged it to 25)
+check(#ns.Roster:GetOwnedPets() == 5, "owned pets listed")
+check(#ns.Roster:Filter({ search = "Alpha" }) == 1, "name search")
+check(#ns.Roster:Filter({ maxOnly = true }) == 2, "level-25 filter")
+check(#ns.Roster:Filter({ typeIndex = 6 }) == 1, "type filter (Magic)")
+check(#ns.Roster:Filter({ strongVs = "Aquatic" }) == 1, "Strong-Vs filter (Flying beats Aquatic)")
+check(#ns.Roster:Filter({ toughVs = "Aquatic" }) == 1, "Tough-Vs filter (Magic resists Aquatic)")
+applied = {}; ns.Roster:SlotPet("PET-A", 2)
+check(applied[2] == "PET-A", "browser slots a pet")
+
+print("\n[13] UI build paths")
+check(pcall(function() ns.UI:Show(); ns.UI:Refresh() end), "team window builds + refreshes")
 check(pcall(function() ns.UI:ShowText("t","export","blob") end), "copy dialog builds")
+check(pcall(function() ns.PetBrowser:Show(); ns.PetBrowser:Refresh() end), "pet browser builds + refreshes")
 
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

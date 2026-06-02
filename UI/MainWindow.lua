@@ -156,7 +156,7 @@ local function buildFrame()
             if n then ns:Print(("Imported %d team(s)."):format(n)) else ns:Print(err) end
         end)
     end)
-    actionButton("Help", 262, function() SlashCmdList["LONGLIVEPETS"]("help") end)
+    actionButton("Pets", 262, function() ns.PetBrowser:Toggle() end)
 
     -- list
     local list = CreateFrame("Frame", nil, frame)

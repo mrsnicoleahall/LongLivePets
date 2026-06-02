@@ -4,14 +4,16 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.3 — the team-management core is feature-complete.** Everything
-> below is implemented and covered by an automated test suite (29 checks). The
-> deep *collection-browser* layer (full pet roster UI, pet card, ability search,
-> markers, send-to-player) is still on the roadmap — see the bottom.
+> **Status: v0.4 — team manager + pet browser, in its own interface.**
+> Everything below is implemented and covered by an automated test suite
+> (37 checks). The companion battle-script engine (tdBattlePetScript) is now
+> bundled.
 
 This is an **original, independent project**. It is written from scratch and
-contains **no code from Rematch or any other addon**. See
-[NOTICE.md](NOTICE.md) for the full provenance and licensing statement.
+contains **no code from Rematch or any other addon**. Long Live Pets uses its
+own window — it does **not** modify or reskin Blizzard's pet journal. See
+[NOTICE.md](NOTICE.md) for the full provenance and licensing statement, and the
+acknowledgements at the bottom.
 
 ---
 
@@ -29,10 +31,14 @@ contains **no code from Rematch or any other addon**. See
   slot and it auto-fills from the queue. Maxed pets drop off automatically.
 - **Import / export / backup** — share a team as a compact string, or back up
   every team at once; paste to import.
+- **Pet browser** — our own window to search and filter your collection by
+  name, type, level (25-only), and counters (Strong Vs / Tough Vs), then drop a
+  pet straight into a battle slot. (`/llp pets`)
 - **Counter helper** — `/llp counter <type>` tells you what beats an enemy type.
 - **Minimap button + keybinding**, a movable window, and a full `/llp` command set.
-- **Optional tdBattlePetScript link** — tag a team with a script name (requires
-  the separate, MIT-licensed tdBattlePetScript addon; see below).
+- **Battle scripts** — the bundled, MIT-licensed **tdBattlePetScript** engine
+  (by DengSir) is included; link a script to a team with
+  `/llp script <team> => <name>`.
 
 ## Commands
 
@@ -53,6 +59,8 @@ contains **no code from Rematch or any other addon**. See
 /llp export <team>            show a shareable string
 /llp import [string]          import a team or backup
 /llp backup                   export all teams
+/llp pets                     open the pet browser
+/llp find <text> | strong <type> | tough <type>
 /llp counter <type>           counter advice for an enemy type
 /llp record win|loss [team]
 /llp minimap                  toggle the minimap button
@@ -61,42 +69,45 @@ contains **no code from Rematch or any other addon**. See
 
 ## Install
 
-1. Download / clone this repo.
-2. Copy the **`LongLivePets`** folder into your AddOns folder:
+This download contains **two addon folders**: `LongLivePets` (this addon) and
+`tdBattlePetScript` (the bundled MIT battle-script engine).
+
+1. Download the release zip (or clone this repo).
+2. Copy **both** `LongLivePets` and `tdBattlePetScript` into your AddOns folder:
    - **Windows:** `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns`
    - **Mac:** `/Applications/World of Warcraft/_retail_/Interface/AddOns`
-3. Enable **Long Live Pets** on the AddOns screen and log in.
+3. Enable them on the AddOns screen and log in. `/llp` to open.
 
-> If you cloned the repo, copy the inner `LongLivePets` folder into AddOns (don't
-> put the whole repo in there — WoW needs the folder that holds `LongLivePets.toc`
-> to sit directly inside `AddOns`).
+> Each folder must sit **directly** inside `AddOns` (WoW needs to see
+> `AddOns/LongLivePets/LongLivePets.toc`). If you already run a standalone copy
+> of tdBattlePetScript, use only one to avoid a duplicate.
+>
+> Don't need scripts? You can install just `LongLivePets`.
 
-## tdBattlePetScript integration (optional)
+## Battle scripts (tdBattlePetScript)
 
-Scripted battles are powered by **tdBattlePetScript** by *DengSir*, which is
-**MIT-licensed**. Long Live Pets does not include it; install it separately if
-you want scripts, then link a script to a team:
+The bundled **tdBattlePetScript** engine is the work of **DengSir**, shared
+under the **MIT License** — its `LICENSE.md` is kept intact in its folder. Long
+Live Pets adds only its own original glue: link a script to a team with
 
 ```
 /llp script Aquatic Stomp => MyDungeonScript
 ```
 
-Because tdBattlePetScript is MIT, it may also legally be bundled alongside this
-addon as long as DengSir's copyright and license are kept intact.
+and it hands off to tdBattlePetScript when that team loads.
 
 ---
 
-## Roadmap (the deep collection-browser layer)
+## Roadmap
 
-The team-management core is done. What's left is the big pet-collection UI:
+Done: team manager (groups, notes, W/L, targets, queue, import/export) and an
+original pet browser with filters. Still ahead:
 
-- A full pet-roster browser inside the window with live filters (Strong Vs /
-  Tough Vs / level / stats) and ability text search
-- Pet card tooltip with stats, lore, and the flip-to-back view
+- Pet card tooltip with stats, lore, and a flip-to-back view
 - Pet markers (star / diamond / moon, etc.)
+- Ability-text search ("list pets that cause Bleed")
 - Drag-and-drop reordering of teams and groups
 - Send-a-team-to-another-player (addon comms)
-- Journal-integrated mode (replace the Blizzard pet journal panel)
 - Tighter two-way tdBattlePetScript integration (run the linked script on load)
 
 Contributions and bug reports welcome.
@@ -110,10 +121,30 @@ outside the game:
 luajit Tests/headless.lua      # run from the repo root
 ```
 
-It exercises save / load / rename / delete / script-linking, input guards, and
-the window build path (19 checks). `Tests/` is not referenced by the TOC, so it
-never loads in-game.
+It exercises teams, groups, notes, win/loss, import/export/backup, targets, the
+leveling queue, the roster filters, and every window build path (37 checks).
+`Tests/` is not referenced by the TOC, so it never loads in-game.
+
+## Open source
+
+Long Live Pets is **free and open source** under the **MIT License** — use it,
+read it, fork it, ship your own changes. The only third-party code in the
+project is the bundled **tdBattlePetScript** engine, which is itself MIT and
+keeps its own license file. Pull requests welcome.
+
+## Acknowledgements
+
+- 🎩 **Hat tip to Gello**, the author of **Rematch** — the addon that defined
+  what great pet-team management feels like and inspired this project. Long Live
+  Pets is an independent, clean-room implementation and contains **none** of
+  Rematch's code; it simply admires the idea. All credit for Rematch is Gello's.
+- 🙏 **DengSir** (Dengzhun Lu), author of **tdBattlePetScript** — the battle
+  scripting engine bundled here under the MIT License. The engine is DengSir's
+  work; we only add an original integration layer.
+- 🐾 World of Warcraft and the `C_PetJournal` API are property of Blizzard
+  Entertainment. This is an unofficial, fan-made addon.
 
 ## License
 
 MIT — see [LICENSE](LICENSE). © 2026 Nicole Hall.
+The bundled `tdBattlePetScript/` retains its own MIT license (© DengSir).

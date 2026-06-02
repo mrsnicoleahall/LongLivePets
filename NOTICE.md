@@ -18,18 +18,25 @@ Blizzard's public `C_PetJournal` API with our own original code. Resembling the
 *behavior* of other pet-team managers is both intentional and legally fine; what
 matters is that none of their *code* is used here, and none is.
 
-## Third-party software
+## A note on Rematch
+
+This project was **inspired by Rematch** (by Gello) — the addon that set the bar
+for pet-team management. Rematch has no open-source license, so **none of its
+code is used here**: every line of Long Live Pets is original. We give Gello a
+sincere hat tip for the design ideas, nothing more. If Gello ever has a concern,
+please open an issue and it will be addressed immediately.
+
+## Third-party software (bundled)
 
 - **tdBattlePetScript** by *DengSir* (Dengzhun Lu) — **MIT License.**
-  Long Live Pets does **not** include tdBattlePetScript. It is an optional,
-  separate addon you install yourself. Long Live Pets only provides its own
+  This battle-script engine is **bundled** in the `tdBattlePetScript/` folder.
+  It is DengSir's work, redistributed here under the terms of the MIT License
+  with the original copyright notice and `LICENSE.md` retained **unmodified**
+  (the MIT License expressly permits this). Long Live Pets adds only its own
   original glue code (`Integration/tdBattlePetScript.lua`) that hands off to
-  tdBattlePetScript's public interface when it is present.
-
-  Because tdBattlePetScript is MIT-licensed, it may also be redistributed or
-  bundled with this addon **provided DengSir's copyright notice and the MIT
-  license text are retained**. If you choose to bundle it, include its original
-  `LICENSE.md` unmodified.
+  tdBattlePetScript's public interface when a scripted team is loaded.
+  Bundled libraries inside tdBattlePetScript (Ace3, LibStub, tdGUI, etc.) retain
+  their own respective licenses.
 
 ## Trademarks / acknowledgements
 
