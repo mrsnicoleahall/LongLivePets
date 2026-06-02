@@ -25,7 +25,7 @@ local colRows, teamRows = {}, {}
 local colPets = {}            -- current filtered collection list
 local state = {
     activeSlot = 1, search = "", typeIndex = nil, maxOnly = false, colOffset = 0,
-    mode = "name", markedOnly = false,
+    mode = "name", markedOnly = false, rightMode = "teams",
     selectedTeam = nil, selectedPet = nil,
 }
 
@@ -149,6 +149,7 @@ local function build()
     UI:BuildTeams()
     UI:BuildImportExport()
     UI:BuildRenameDialog()
+    UI:BuildMenu()
 end
 
 -- ---- rename popup (groups + teams) ----------------------------------------
@@ -178,12 +179,54 @@ function UI:BuildRenameDialog()
     frame.renameDialog = p
 end
 
-function UI:PromptRename(current, onAccept)
+function UI:PromptText(title, current, onAccept)
     if not frame then build() end
     local p = frame.renameDialog
+    p.title:SetText(title or "Edit")
     p.cb = onAccept
     p.edit:SetText(current or ""); p.edit:SetFocus(); p.edit:HighlightText()
     p:Show()
+end
+
+-- ---- reusable right-click context menu ------------------------------------
+function UI:BuildMenu()
+    local m = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+    m:SetFrameStrata("FULLSCREEN_DIALOG"); m:SetWidth(150)
+    if m.SetBackdrop then
+        m:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+        m:SetBackdropColor(0.05, 0.05, 0.07, 1); m:SetBackdropBorderColor(0.45, 0.45, 0.45, 1)
+    end
+    m.buttons = {}
+    for i = 1, 7 do
+        local b = CreateFrame("Button", nil, m)
+        b:SetSize(142, 18); b:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 18)
+        b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        b.text:SetPoint("LEFT", 6, 0); b.text:SetJustifyH("LEFT")
+        b:Hide(); m.buttons[i] = b
+    end
+    m:SetScript("OnHide", function() m:Hide() end)
+    m:Hide()
+    frame.ctxMenu = m
+end
+
+function UI:ShowMenu(items)
+    if not frame then build() end
+    local m = frame.ctxMenu
+    for i, b in ipairs(m.buttons) do
+        local it = items[i]
+        if it then
+            b.text:SetText(it.text)
+            b:SetScript("OnClick", function() m:Hide(); it.fn() end)
+            b:Show()
+        else b:Hide() end
+    end
+    m:SetHeight(#items * 18 + 8)
+    local x, y = GetCursorPosition(); local s = UIParent:GetEffectiveScale()
+    m:ClearAllPoints(); m:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
+    m:Show()
 end
 
 -- ---- COLLECTION (left) ----------------------------------------------------
@@ -310,7 +353,8 @@ function UI:BuildLoadout()
     end)
     local reload = btn(frame, "Reload", 70, 20); reload:SetPoint("TOPLEFT", 250, -140)
     reload:SetScript("OnClick", function() ns.Teams:Reload() end)
-    local build = btn(frame, "Build Counter", 130, 20); build:SetPoint("LEFT", reload, "RIGHT", 6, 0)
+    -- Build Counter lives at the bottom of the center column
+    local build = btn(frame, "Build Counter", 150, 22); build:SetPoint("BOTTOMLEFT", 250, 40)
     build:SetScript("OnClick", function() UI:BuildCounter() end)
 
     -- counter / card area (below the moves picker)
@@ -383,37 +427,42 @@ function UI:RefreshMoves()
     end
 end
 
--- ---- TEAMS (right) --------------------------------------------------------
+-- ---- TEAMS / QUEUE (right) ------------------------------------------------
 function UI:BuildTeams()
     panelTitle(frame, "Teams", 500)
+
+    -- Teams / Queue toggle + New Group (top of the panel)
+    local teamsTab = btn(frame, "Teams", 60, 18); teamsTab:SetPoint("TOPLEFT", 500, -58); frame.teamsTab = teamsTab
+    local queueTab = btn(frame, "Queue", 60, 18); queueTab:SetPoint("LEFT", teamsTab, "RIGHT", 4, 0); frame.queueTab = queueTab
+    local newG = btn(frame, "+ New Group", 100, 18); newG:SetPoint("LEFT", queueTab, "RIGHT", 6, 0)
+    teamsTab:SetScript("OnClick", function() state.rightMode = "teams"; UI:RefreshRight() end)
+    queueTab:SetScript("OnClick", function() state.rightMode = "queue"; UI:RefreshRight() end)
+    newG:SetScript("OnClick", function()
+        UI:PromptText("New group name", "", function(n) if n and n ~= "" then ns.Groups:Create(n) end end)
+    end)
+
     frame.teamsHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    frame.teamsHint:SetPoint("TOPLEFT", 500, -58)
-    frame.teamsHint:SetText("Click a team to select. Click a group to move it there.")
+    frame.teamsHint:SetPoint("TOPLEFT", 500, -80)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 500, -74); list:SetSize(262, ROW_H * TEAM_ROWS)
+    list:SetPoint("TOPLEFT", 500, -96); list:SetSize(262, ROW_H * TEAM_ROWS)
     for i = 1, TEAM_ROWS do
         local row = CreateFrame("Button", nil, list)
         row:SetHeight(ROW_H); row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H); row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
         row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(16, 16); ico:SetPoint("LEFT", 0, 0); row.ico = ico
         local nm = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        nm:SetPoint("LEFT", 2, 0); nm:SetPoint("RIGHT", -62, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
+        nm:SetPoint("LEFT", 20, 0); nm:SetPoint("RIGHT", -62, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
         local up  = btn(row, "^", 18, 18); up:SetPoint("RIGHT", -40, 0); row.up = up
         local dn  = btn(row, "v", 18, 18); dn:SetPoint("RIGHT", -20, 0); row.dn = dn
         local del = btn(row, "X", 18, 18); del:SetPoint("RIGHT", 0, 0); row.del = del
         row:Hide(); teamRows[i] = row
     end
     frame.teamsEmpty = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    frame.teamsEmpty:SetPoint("TOP", 0, -8); frame.teamsEmpty:SetText("No teams yet.\nSlot pets, name it, Save.")
+    frame.teamsEmpty:SetPoint("TOP", 0, -8)
 
-    local newG = btn(frame, "+ Group", 80, 20); newG:SetPoint("BOTTOMLEFT", 500, 40)
-    newG:SetScript("OnClick", function()
-        local n = 1
-        while ns.Groups:GetByName("Group " .. n) do n = n + 1 end
-        ns.Groups:Create("Group " .. n)
-    end)
-    local ie = btn(frame, "Import/Export", 110, 20); ie:SetPoint("LEFT", newG, "RIGHT", 6, 0)
+    local ie = btn(frame, "Import/Export", 110, 20); ie:SetPoint("BOTTOMLEFT", 500, 40)
     ie:SetScript("OnClick", function() UI:ShowText("Backup — copy, or paste to import", "both", ns.Serialize:BackupAll()) end)
 
     -- share row
@@ -523,8 +572,42 @@ function UI:RefreshLoadout()
     self:RefreshMoves()
 end
 
+-- Right column dispatches to Teams or Queue.
+function UI:RefreshRight()
+    if not frame then return end
+    if frame.teamsTab then
+        if state.rightMode == "queue" then frame.teamsTab:UnlockHighlight(); frame.queueTab:LockHighlight()
+        else frame.teamsTab:LockHighlight(); frame.queueTab:UnlockHighlight() end
+    end
+    if state.rightMode == "queue" then self:RefreshQueue() else self:RefreshTeams() end
+end
+
+function UI:RefreshQueue()
+    if not frame then return end
+    frame.teamsHint:SetText("Your leveling queue. X removes a pet.")
+    local q = ns.Queue:Pending()
+    frame.teamsEmpty:SetShown(#q == 0)
+    if #q == 0 then frame.teamsEmpty:SetText("Queue is empty.\n/llp queue add <slot 1-3>") end
+    for i, row in ipairs(teamRows) do
+        local petID = q[i]
+        if petID then
+            local _, _, level, _, _, _, _, name, icon = C_PetJournal.GetPetInfoByPetID(petID)
+            row.ico:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark"); row.ico:Show()
+            row.nm:SetText(("%d. %s |cffaaaaaaL%s|r"):format(i, name or "pet", tostring(level or "?")))
+            row.up:Hide(); row.dn:Hide()
+            row.del:SetScript("OnClick", function() ns.Queue:Remove(petID) end)
+            row.del:Show()
+            row:SetScript("OnClick", nil)
+            row:Show()
+        else
+            row:Hide()
+        end
+    end
+end
+
 function UI:RefreshTeams()
     if not frame then return end
+    frame.teamsHint:SetText("Click to select. Right-click for options. Click a group to move there.")
     -- flat display list (group headers + teams), reused from team list
     local groups, teams = ns.Groups:List(), ns.Teams:List()
     local byGroup, ungrouped = {}, {}
@@ -550,13 +633,17 @@ function UI:RefreshTeams()
         if not d then
             row:Hide()
         elseif d.header then
+            row.ico:Hide()
             local hint = state.selectedTeam and "  |cff44ff44← move here|r" or ""
             row.nm:SetText("|cffffd100" .. d.name .. "|r" .. hint)
             row.up:Hide(); row.dn:Hide(); row.del:Hide()
             row:SetScript("OnClick", function(_, mouse)
                 if mouse == "RightButton" then
                     if d.groupID then
-                        UI:PromptRename(d.name, function(n) ns.Groups:Rename(d.groupID, n) end)
+                        UI:ShowMenu({
+                            { text = "Rename group", fn = function() UI:PromptText("Rename group", d.name, function(n) ns.Groups:Rename(d.groupID, n) end) end },
+                            { text = "Delete group", fn = function() ns.Groups:Delete(d.groupID) end },
+                        })
                     end
                 elseif state.selectedTeam then
                     ns.Groups:Assign(state.selectedTeam, d.groupID)
@@ -567,16 +654,27 @@ function UI:RefreshTeams()
             row:Show()
         else
             local t = d.team
+            row.ico:Hide()
             local label = t.name
             if t.loaded then label = "|cff44ff44>|r " .. label end
             if (t.wins + t.losses) > 0 then label = label .. (" |cffaaaaaa%d-%d|r"):format(t.wins, t.losses) end
+            if t.script then label = label .. " |cff8ec5ff(s)|r" end
+            if t.notes then label = label .. " |cffd0a0ff(n)|r" end
             if state.selectedTeam == t.id then label = "|cffffffff[" .. label .. "]|r" end
             row.nm:SetText(label)
             row:SetScript("OnClick", function(_, mouse)
                 if mouse == "RightButton" then
-                    UI:PromptRename(t.name, function(n) ns.Teams:Rename(t.id, n) end)
+                    local team = ns.db.teams[t.id]
+                    UI:ShowMenu({
+                        { text = "Load", fn = function() ns.Teams:Load(t.id) end },
+                        { text = "Rename", fn = function() UI:PromptText("Rename team", t.name, function(n) ns.Teams:Rename(t.id, n) end) end },
+                        { text = "Edit note", fn = function() UI:PromptText("Note for " .. t.name, team and team.notes or "", function(v) ns.Teams:SetNotes(t.id, v) end) end },
+                        { text = "Set / edit script", fn = function() UI:PromptText("Script name for " .. t.name, team and team.script or "", function(v) ns.Integration:SetScript(t.id, v) end) end },
+                        { text = "Test script", fn = function() ns.Integration:Test(t.id) end },
+                        { text = "Delete", fn = function() ns.Teams:Delete(t.id) end },
+                    })
                 else
-                    state.selectedTeam = t.id; ns.Teams:Load(t.id); UI:RefreshTeams()
+                    state.selectedTeam = t.id; ns.Teams:Load(t.id); UI:RefreshRight()
                 end
             end)
             row.up:SetScript("OnClick", function() UI:MoveTeam(t, -1) end)
@@ -621,7 +719,7 @@ end
 
 function UI:Refresh()
     if not frame then return end
-    self:RefreshCollection(); self:RefreshTeams(); self:RefreshLoadout()
+    self:RefreshCollection(); self:RefreshRight(); self:RefreshLoadout()
 end
 
 function UI:Toggle()

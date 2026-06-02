@@ -4,13 +4,7 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.7 (alpha) — one window, everything in it.** Collection, your
-> loaded team, and saved teams sit side by side in a single 3-panel window (no
-> popups). Dropdown filters, drag/click to slot, **pick each pet's moves in the
-> window**, mark pets, reorder teams, send a team to a friend, and auto-build a
-> counter team. Covered by a 64-check automated suite. The battle-script engine
-> (tdBattlePetScript) is bundled. **Alpha:** in active testing — expect rough
-> edges and please report bugs.
+> **Status: v0.8 (alpha) — one window with right-click menus, notes, scripts, a leveling-queue tab, and a working battlescript hand-off.** Collection scrolls; teams + groups have right-click Edit/Delete; pick each pet's moves; auto-build counters. Covered by a 67-check suite. **Alpha:** in active testing.
 
 This is an **original, independent project**. It is written from scratch and
 contains **no code from Rematch or any other addon**. Long Live Pets uses its
@@ -149,7 +143,7 @@ luajit Tests/headless.lua      # run from the repo root
 It exercises teams (incl. reorder), groups, notes, win/loss, import/export/backup,
 targets, the leveling queue, roster + ability + marker filters, the pet card,
 send-to-player chunk/reassemble, enemy-intel capture, the counter-team builder,
-and every window build path (64 checks). `Tests/` is not referenced by the TOC,
+and every window build path (67 checks). `Tests/` is not referenced by the TOC,
 so it never loads in-game.
 
 ## Open source

@@ -337,5 +337,34 @@ check(layout and #layout == 3, "ability layout has 3 slots")
 check(layout[1][1] and layout[1][1].id == 1 and layout[1][1].selected, "slot 1 option A is the selected ability")
 check(layout[1][2] and layout[1][2].id == 4, "slot 1 option B is the alternate ability")
 
+print("\n[21] battlescript arming (mocked tdBattlePetScript)")
+local setScriptArg
+local fakeScript = setmetatable({ name = "MyScript" }, {})
+function fakeScript:GetName() return self.name end
+function fakeScript:GetScript() return {} end
+local SM = { IteratePluginScripts = function()
+    local done = false
+    return function() if not done then done = true; return "k", fakeScript end end
+end }
+local Director = { SetScript = function(_, s) setScriptArg = s end }
+_G.tdBattlePetScript = {
+    GetModule = function(_, n) if n == "ScriptManager" then return SM elseif n == "Director" then return Director end end,
+    IterateEnabledPlugins = function()
+        local done = false
+        return function() if not done then done = true; return "p", {} end end
+    end,
+    SetSetting = function() end,
+}
+local oldLoaded = C_AddOns.IsAddOnLoaded
+C_AddOns.IsAddOnLoaded = function(n) return n == "tdBattlePetScript" end
+setSlots({ [1] = { petID = "PET-A", a1 = 1, a2 = 2, a3 = 3 } })
+slash("save Scripted")
+ns.Integration:SetScript("Scripted", "MyScript")
+local _, scriptedTeam = ns.Teams:GetByName("Scripted")
+check(ns.Integration:FindScriptByName("MyScript") == fakeScript, "finds the saved script by name")
+check(ns.Integration:Arm(scriptedTeam) == true, "arm reports success")
+check(setScriptArg == fakeScript, "Director:SetScript received the script object")
+_G.tdBattlePetScript = nil; C_AddOns.IsAddOnLoaded = oldLoaded
+
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)
