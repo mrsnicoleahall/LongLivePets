@@ -143,6 +143,24 @@ local function build()
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -6, -6)
 
+    -- framing around each column for readability
+    local function columnFrame(x1, x2)
+        local c = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+        c:SetPoint("TOPLEFT", x1, -34)
+        c:SetPoint("BOTTOMRIGHT", frame, "BOTTOMLEFT", x2, 12)
+        if c.SetBackdrop then
+            c:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+                insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+            c:SetBackdropColor(1, 1, 1, 0.04)
+            c:SetBackdropBorderColor(0.5, 0.5, 0.55, 0.8)
+        end
+        return c
+    end
+    columnFrame(10, 248)    -- Collection
+    columnFrame(252, 484)   -- Loaded Team
+    columnFrame(488, 772)   -- Teams / Queue
+
     UI:BuildCollection()
     UI:BuildLoadout()
     UI:BuildMoves()
@@ -274,6 +292,18 @@ function UI:BuildCollection()
         UI:RefreshCollection()
     end, "Filter: all")
     moreDD:SetPoint("TOPLEFT", 16, -108)
+
+    -- Counter dropdown: Strong Vs / Tough Vs a chosen enemy type
+    local counterOpts = { { text = "Counter: off", value = nil } }
+    for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Strong vs " .. ns.Types.NAME[i], value = { mode = "strong", t = i } } end
+    for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Tough vs " .. ns.Types.NAME[i], value = { mode = "tough", t = i } } end
+    local counterDD = makeDropdown(frame, 110, counterOpts, function(v)
+        if not v then state.strongVs = nil; state.toughVs = nil
+        elseif v.mode == "strong" then state.strongVs = v.t; state.toughVs = nil
+        else state.toughVs = v.t; state.strongVs = nil end
+        UI:RefreshCollection()
+    end, "Counter: off")
+    counterDD:SetPoint("LEFT", moreDD, "RIGHT", 6, 0)
 
     local list = CreateFrame("Frame", nil, frame)
     list:SetPoint("TOPLEFT", 16, -134); list:SetSize(210, ROW_H * COL_ROWS)
@@ -545,6 +575,7 @@ function UI:RefreshCollection()
     local opts = {
         maxOnly = state.maxOnly, maxLevel = state.maxLevel, typeIndex = state.typeIndex,
         markedOnly = state.markedOnly, rarity = state.rarity,
+        strongVs = state.strongVs, toughVs = state.toughVs,
     }
     if state.mode == "ability" then opts.ability = state.search else opts.search = state.search end
     colPets = ns.Roster:Filter(opts)
@@ -636,7 +667,13 @@ function UI:RefreshTeams()
             row.ico:Hide()
             local hint = state.selectedTeam and "  |cff44ff44← move here|r" or ""
             row.nm:SetText("|cffffd100" .. d.name .. "|r" .. hint)
-            row.up:Hide(); row.dn:Hide(); row.del:Hide()
+            row.up:Hide(); row.dn:Hide()
+            if d.groupID then           -- real group: offer a delete button
+                row.del:SetScript("OnClick", function() ns.Groups:Delete(d.groupID) end)
+                row.del:Show()
+            else                        -- "Ungrouped" can't be deleted
+                row.del:Hide()
+            end
             row:SetScript("OnClick", function(_, mouse)
                 if mouse == "RightButton" then
                     if d.groupID then
