@@ -22,8 +22,9 @@ local ROW_H = 22
 
 local frame
 local colRows, teamRows = {}, {}
+local colPets = {}            -- current filtered collection list
 local state = {
-    activeSlot = 1, search = "", typeIndex = nil, maxOnly = false,
+    activeSlot = 1, search = "", typeIndex = nil, maxOnly = false, colOffset = 0,
     mode = "name", markedOnly = false,
     selectedTeam = nil, selectedPet = nil,
 }
@@ -147,6 +148,42 @@ local function build()
     UI:BuildMoves()
     UI:BuildTeams()
     UI:BuildImportExport()
+    UI:BuildRenameDialog()
+end
+
+-- ---- rename popup (groups + teams) ----------------------------------------
+function UI:BuildRenameDialog()
+    local p = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    p:SetSize(280, 96); p:SetPoint("CENTER"); p:SetFrameStrata("FULLSCREEN_DIALOG")
+    if p.SetBackdrop then
+        p:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 } })
+        p:SetBackdropColor(0.05, 0.05, 0.07, 1); p:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+    end
+    p.title = p:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    p.title:SetPoint("TOP", 0, -12); p.title:SetText("Rename")
+    p.edit = CreateFrame("EditBox", nil, p, "InputBoxTemplate")
+    p.edit:SetSize(230, 22); p.edit:SetPoint("TOP", 0, -36); p.edit:SetAutoFocus(true); p.edit:SetMaxLetters(40)
+    p.accept = btn(p, "OK", 80, 22); p.accept:SetPoint("BOTTOMRIGHT", -16, 12)
+    p.accept:SetScript("OnClick", function()
+        local v = p.edit:GetText(); p:Hide()
+        if p.cb and v and v ~= "" then p.cb(v) end
+    end)
+    local cancel = btn(p, "Cancel", 80, 22); cancel:SetPoint("RIGHT", p.accept, "LEFT", -8, 0)
+    cancel:SetScript("OnClick", function() p:Hide() end)
+    p.edit:SetScript("OnEnterPressed", function() p.accept:Click() end)
+    p.edit:SetScript("OnEscapePressed", function() p:Hide() end)
+    p:Hide()
+    frame.renameDialog = p
+end
+
+function UI:PromptRename(current, onAccept)
+    if not frame then build() end
+    local p = frame.renameDialog
+    p.cb = onAccept
+    p.edit:SetText(current or ""); p.edit:SetFocus(); p.edit:HighlightText()
+    p:Show()
 end
 
 -- ---- COLLECTION (left) ----------------------------------------------------
@@ -196,12 +233,12 @@ function UI:BuildCollection()
     moreDD:SetPoint("TOPLEFT", 16, -108)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 16, -134); list:SetSize(226, ROW_H * COL_ROWS)
+    list:SetPoint("TOPLEFT", 16, -134); list:SetSize(210, ROW_H * COL_ROWS)
+    list:EnableMouseWheel(true)
     for i = 1, COL_ROWS do
         local row = CreateFrame("Button", nil, list)
         row:SetHeight(ROW_H); row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H); row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
         row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        row:RegisterForDrag("LeftButton")
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
 
         local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(18, 18); ico:SetPoint("LEFT", 0, 0); row.ico = ico
@@ -220,14 +257,30 @@ function UI:BuildCollection()
                 UI:ShowCard(self.pet)
             end
         end)
-        row:SetScript("OnDragStart", function(self)
-            if self.pet and C_PetJournal.PickupPet then C_PetJournal.PickupPet(self.pet.petID) end
-        end)
         row:SetScript("OnEnter", function(self) if self.pet then UI:ShowCard(self.pet) end end)
         row:Hide(); colRows[i] = row
     end
     frame.colEmpty = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     frame.colEmpty:SetPoint("TOP", 0, -8); frame.colEmpty:SetText("No pets match.")
+
+    -- scrollbar + mouse wheel
+    local sb = CreateFrame("Slider", nil, frame)
+    sb:SetOrientation("VERTICAL"); sb:SetWidth(14)
+    sb:SetPoint("TOPLEFT", list, "TOPRIGHT", 2, 0)
+    sb:SetPoint("BOTTOMLEFT", list, "BOTTOMRIGHT", 2, 0)
+    sb:SetMinMaxValues(0, 0); sb:SetValueStep(1); sb:SetObeyStepOnDrag(true)
+    sb:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+    local thumb = sb:GetThumbTexture(); if thumb and thumb.SetSize then thumb:SetSize(14, 26) end
+    sb:SetScript("OnValueChanged", function(_, value)
+        state.colOffset = math.floor((value or 0) + 0.5); UI:RenderCollection()
+    end)
+    frame.colSlider = sb
+
+    local function wheel(_, delta) sb:SetValue((sb:GetValue() or 0) - delta) end
+    list:SetScript("OnMouseWheel", wheel)
+    for _, row in ipairs(colRows) do
+        row:EnableMouseWheel(true); row:SetScript("OnMouseWheel", wheel)
+    end
 end
 
 -- ---- LOADED TEAM (center) -------------------------------------------------
@@ -342,6 +395,7 @@ function UI:BuildTeams()
     for i = 1, TEAM_ROWS do
         local row = CreateFrame("Button", nil, list)
         row:SetHeight(ROW_H); row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H); row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
+        row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
         local nm = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         nm:SetPoint("LEFT", 2, 0); nm:SetPoint("RIGHT", -62, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
@@ -421,17 +475,12 @@ function UI:ShowCard(pet)
     frame.strip:SetText(table.concat(out, "\n"))
 end
 
-function UI:RefreshCollection()
+-- Render the visible window of colPets starting at state.colOffset.
+function UI:RenderCollection()
     if not frame then return end
-    local opts = {
-        maxOnly = state.maxOnly, maxLevel = state.maxLevel, typeIndex = state.typeIndex,
-        markedOnly = state.markedOnly, rarity = state.rarity,
-    }
-    if state.mode == "ability" then opts.ability = state.search else opts.search = state.search end
-    local pets = ns.Roster:Filter(opts)
-    frame.colEmpty:SetShown(#pets == 0)
+    local off = state.colOffset or 0
     for i, row in ipairs(colRows) do
-        local p = pets[i]
+        local p = colPets[i + off]
         if p then
             row.pet = p
             if p.icon then row.ico:SetTexture(p.icon) end
@@ -440,6 +489,25 @@ function UI:RefreshCollection()
             row:Show()
         else row.pet = nil; row:Hide() end
     end
+end
+
+function UI:RefreshCollection()
+    if not frame then return end
+    local opts = {
+        maxOnly = state.maxOnly, maxLevel = state.maxLevel, typeIndex = state.typeIndex,
+        markedOnly = state.markedOnly, rarity = state.rarity,
+    }
+    if state.mode == "ability" then opts.ability = state.search else opts.search = state.search end
+    colPets = ns.Roster:Filter(opts)
+    frame.colEmpty:SetShown(#colPets == 0)
+
+    local maxOff = math.max(0, #colPets - COL_ROWS)
+    if (state.colOffset or 0) > maxOff then state.colOffset = maxOff end
+    if frame.colSlider then
+        frame.colSlider:SetMinMaxValues(0, maxOff)
+        frame.colSlider:SetValue(state.colOffset or 0)
+    end
+    self:RenderCollection()
 end
 
 function UI:RefreshLoadout()
@@ -485,8 +553,16 @@ function UI:RefreshTeams()
             local hint = state.selectedTeam and "  |cff44ff44← move here|r" or ""
             row.nm:SetText("|cffffd100" .. d.name .. "|r" .. hint)
             row.up:Hide(); row.dn:Hide(); row.del:Hide()
-            row:SetScript("OnClick", function()
-                if state.selectedTeam then ns.Groups:Assign(state.selectedTeam, d.groupID) end
+            row:SetScript("OnClick", function(_, mouse)
+                if mouse == "RightButton" then
+                    if d.groupID then
+                        UI:PromptRename(d.name, function(n) ns.Groups:Rename(d.groupID, n) end)
+                    end
+                elseif state.selectedTeam then
+                    ns.Groups:Assign(state.selectedTeam, d.groupID)
+                else
+                    ns:Print("Click a team first to select it, then click a group to move it.")
+                end
             end)
             row:Show()
         else
@@ -496,8 +572,12 @@ function UI:RefreshTeams()
             if (t.wins + t.losses) > 0 then label = label .. (" |cffaaaaaa%d-%d|r"):format(t.wins, t.losses) end
             if state.selectedTeam == t.id then label = "|cffffffff[" .. label .. "]|r" end
             row.nm:SetText(label)
-            row:SetScript("OnClick", function()
-                state.selectedTeam = t.id; ns.Teams:Load(t.id); UI:RefreshTeams()
+            row:SetScript("OnClick", function(_, mouse)
+                if mouse == "RightButton" then
+                    UI:PromptRename(t.name, function(n) ns.Teams:Rename(t.id, n) end)
+                else
+                    state.selectedTeam = t.id; ns.Teams:Load(t.id); UI:RefreshTeams()
+                end
             end)
             row.up:SetScript("OnClick", function() UI:MoveTeam(t, -1) end)
             row.dn:SetScript("OnClick", function() UI:MoveTeam(t, 1) end)
