@@ -42,11 +42,30 @@ function strsplit(sep, str)
   return unpack(parts)
 end
 function InCombatLockdown() return false end
+function GetCursorPosition() return 0, 0 end
 time = os.time
 SlashCmdList = {}
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) end }   -- quiet
 Enum = { BattlePetOwner = { Ally = 0, Enemy = 1 } }
-C_PetBattles = { IsInBattle = function() return false end }
+GameTooltip = makeFrame()
+Minimap = makeFrame()
+
+-- ability data: id -> {name, desc}; species -> {ability ids}
+local abilityById = {
+  [1] = { name = "Water Jet",   desc = "Hits hard." },
+  [2] = { name = "Sticky Web",  desc = "Slows the target with webbing." },
+  [3] = { name = "Slicing Wind",desc = "Flying damage." },
+  [4] = { name = "Bite",        desc = "Beast damage." },
+}
+local speciesAbilities = { [100] = {1}, [200] = {2}, [300] = {3}, [400] = {4}, [500] = {4} }
+
+C_PetBattles = {
+  IsInBattle = function() return false end,
+  GetAbilityInfoByID = function(id)
+    local a = abilityById[id]; if not a then return end
+    return id, a.name, "icon", 0, a.desc, 1, 1, false
+  end,
+}
 C_AddOns = {
   GetAddOnMetadata = function(_, k) return k == "Version" and "0.3.0" or nil end,
   IsAddOnLoaded = function() return false end,
@@ -95,6 +114,16 @@ C_PetJournal = {
     local p = mockPets[petID]
     return 100, 100, 10, 10, p and p.rarity or 1
   end,
+  GetPetInfoBySpeciesID = function(speciesID)
+    return "Species" .. tostring(speciesID), "icon", 1, nil,
+      "Found somewhere.", "A short description."
+  end,
+  GetPetAbilityList = function(speciesID, idTable, levelTable)
+    for _, id in ipairs(speciesAbilities[speciesID] or {}) do
+      idTable[#idTable + 1] = id
+      levelTable[#levelTable + 1] = 1
+    end
+  end,
   SetPetLoadOutInfo = function(slot, petID) applied[slot] = petID end,
   SetAbility = function() end,
 }
@@ -105,7 +134,7 @@ local files = {
   "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Loadout.lua",
   "Core/Roster.lua", "Core/Groups.lua", "Core/Queue.lua", "Core/Teams.lua",
   "Core/Targets.lua", "Core/Serialize.lua", "Core/Battle.lua",
-  "UI/MainWindow.lua", "UI/PetBrowser.lua", "UI/Minimap.lua",
+  "UI/MainWindow.lua", "UI/PetCard.lua", "UI/PetBrowser.lua", "UI/Minimap.lua",
   "Integration/tdBattlePetScript.lua", "Core/Slash.lua",
 }
 for _, f in ipairs(files) do assert(loadfile(f))("LongLivePets", ns) end
@@ -216,10 +245,28 @@ check(#ns.Roster:Filter({ toughVs = "Aquatic" }) == 1, "Tough-Vs filter (Magic r
 applied = {}; ns.Roster:SlotPet("PET-A", 2)
 check(applied[2] == "PET-A", "browser slots a pet")
 
-print("\n[13] UI build paths")
+print("\n[13] ability-text search")
+check(#ns.Roster:Filter({ ability = "web" }) == 1, "ability search finds 'web' (Sticky Web)")
+check(#ns.Roster:Filter({ ability = "damage" }) == 3, "ability search matches descriptions")
+check(#ns.Roster:Filter({ ability = "nonexistent" }) == 0, "ability search rejects misses")
+
+print("\n[14] pet card")
+local lines = ns.PetCard:BuildLines({ name = "Alpha", petType = 9, rarity = 4, level = 25, petID = "PET-A", speciesID = 100 })
+check(lines[1] and lines[1].kind == "title" and lines[1].text == "Alpha", "card title is the pet name")
+local hasHealth, hasDesc = false, false
+for _, l in ipairs(lines) do
+  if l.kind == "double" and l.left == "Health" then hasHealth = true end
+  if l.kind == "wrap" and l.text == "A short description." then hasDesc = true end
+end
+check(hasHealth, "card shows stats")
+check(hasDesc, "card shows description")
+
+print("\n[15] UI build paths")
 check(pcall(function() ns.UI:Show(); ns.UI:Refresh() end), "team window builds + refreshes")
 check(pcall(function() ns.UI:ShowText("t","export","blob") end), "copy dialog builds")
 check(pcall(function() ns.PetBrowser:Show(); ns.PetBrowser:Refresh() end), "pet browser builds + refreshes")
+check(pcall(function() ns.Minimap:Create() end), "minimap button builds")
+check(pcall(function() ns.PetCard:Show(ns.frame, { name="X", petType=1, level=1, petID="PET-A", speciesID=100 }) end), "pet card renders")
 
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

@@ -46,6 +46,7 @@ end
 function Roster:Filter(opts)
     opts = opts or {}
     local search = opts.search and opts.search ~= "" and opts.search:lower() or nil
+    local ability = opts.ability and opts.ability ~= "" and opts.ability:lower() or nil
     local strongIdx = opts.strongVs and ns.Types:StrongAttackerIndexVs(opts.strongVs)
     local toughIdx  = opts.toughVs and ns.Types:ToughTypeIndexVs(opts.toughVs)
 
@@ -60,6 +61,7 @@ function Roster:Filter(opts)
         if ok and strongIdx and p.petType ~= strongIdx then ok = false end
         if ok and toughIdx and p.petType ~= toughIdx then ok = false end
         if ok and opts.rarity and (p.rarity or 0) < opts.rarity then ok = false end
+        if ok and ability and not self:SpeciesHasAbilityText(p.speciesID, ability) then ok = false end
         if ok then out[#out + 1] = p end
     end
 
@@ -68,6 +70,42 @@ function Roster:Filter(opts)
         return a.name:lower() < b.name:lower()
     end)
     return out
+end
+
+-- ---- ability index (for ability-text search) -----------------------------
+-- Cache each species' abilities as { {id, name, desc}, ... }. Built lazily.
+local abilityCache = {}
+
+function Roster:GetSpeciesAbilities(speciesID)
+    if not speciesID then return {} end
+    if abilityCache[speciesID] then return abilityCache[speciesID] end
+    local out = {}
+    if C_PetJournal and C_PetJournal.GetPetAbilityList then
+        local ids, levels = {}, {}
+        C_PetJournal.GetPetAbilityList(speciesID, ids, levels)
+        for _, id in ipairs(ids) do
+            local name, desc
+            if C_PetBattles and C_PetBattles.GetAbilityInfoByID then
+                local _, n, _, _, d = C_PetBattles.GetAbilityInfoByID(id)
+                name, desc = n, d
+            end
+            out[#out + 1] = { id = id, name = name or "", desc = desc or "" }
+        end
+    end
+    abilityCache[speciesID] = out
+    return out
+end
+
+-- True if any of the species' abilities' name OR description contains `term`.
+function Roster:SpeciesHasAbilityText(speciesID, term)
+    if not term or term == "" then return false end
+    term = term:lower()
+    for _, a in ipairs(self:GetSpeciesAbilities(speciesID)) do
+        if a.name:lower():find(term, 1, true) or a.desc:lower():find(term, 1, true) then
+            return true
+        end
+    end
+    return false
 end
 
 -- Put a pet into a battle slot (used by the browser).

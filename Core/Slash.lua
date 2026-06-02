@@ -33,7 +33,7 @@ local function help()
         "/llp import [string]       import a team/backup",
         "/llp backup                export all teams",
         "/llp pets                  open the pet browser",
-        "/llp find <text> | strong <type> | tough <type>",
+        "/llp find <text> | strong <type> | tough <type> | ability <text>",
         "/llp counter <type>        counter advice for an enemy type",
         "/llp record win|loss [team]",
         "/llp minimap               toggle the minimap button",
@@ -178,6 +178,7 @@ handlers.find = function(rest)
     local opts = {}
     if mode and mode:lower() == "strong" then opts.strongVs = arg
     elseif mode and mode:lower() == "tough" then opts.toughVs = arg
+    elseif mode and mode:lower() == "ability" then opts.ability = arg
     else opts.search = rest end
     local pets = ns.Roster:Filter(opts)
     if #pets == 0 then ns:Print("no matching pets."); return end

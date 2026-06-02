@@ -4,10 +4,10 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.4 — team manager + pet browser, in its own interface.**
-> Everything below is implemented and covered by an automated test suite
-> (37 checks). The companion battle-script engine (tdBattlePetScript) is now
-> bundled.
+> **Status: v0.5 — team manager + pet browser with hover cards & ability
+> search, in its own interface.** Everything below is implemented and covered by
+> an automated test suite (45 checks). The companion battle-script engine
+> (tdBattlePetScript) is bundled.
 
 This is an **original, independent project**. It is written from scratch and
 contains **no code from Rematch or any other addon**. Long Live Pets uses its
@@ -34,6 +34,11 @@ acknowledgements at the bottom.
 - **Pet browser** — our own window to search and filter your collection by
   name, type, level (25-only), and counters (Strong Vs / Tough Vs), then drop a
   pet straight into a battle slot. (`/llp pets`)
+- **Pet cards** — hover any pet in the browser for a card with its stats
+  (health / power / speed), type, rarity, source, and flavor text.
+- **Ability search** — flip the browser's search to "ability" mode (or use
+  `/llp find ability <text>`) to list pets with a matching ability name or
+  description — e.g. find everything that causes *Bleed*.
 - **Counter helper** — `/llp counter <type>` tells you what beats an enemy type.
 - **Minimap button + keybinding**, a movable window, and a full `/llp` command set.
 - **Battle scripts** — the bundled, MIT-licensed **tdBattlePetScript** engine
@@ -100,12 +105,12 @@ and it hands off to tdBattlePetScript when that team loads.
 
 ## Roadmap
 
-Done: team manager (groups, notes, W/L, targets, queue, import/export) and an
-original pet browser with filters. Still ahead:
+Done: team manager (groups, notes, W/L, targets, queue, import/export), an
+original pet browser with filters, hover pet cards, and ability-text search.
+Still ahead:
 
-- Pet card tooltip with stats, lore, and a flip-to-back view
+- A flip-to-back lore view on the pet card
 - Pet markers (star / diamond / moon, etc.)
-- Ability-text search ("list pets that cause Bleed")
 - Drag-and-drop reordering of teams and groups
 - Send-a-team-to-another-player (addon comms)
 - Tighter two-way tdBattlePetScript integration (run the linked script on load)
@@ -122,8 +127,9 @@ luajit Tests/headless.lua      # run from the repo root
 ```
 
 It exercises teams, groups, notes, win/loss, import/export/backup, targets, the
-leveling queue, the roster filters, and every window build path (37 checks).
-`Tests/` is not referenced by the TOC, so it never loads in-game.
+leveling queue, roster + ability-text filters, the pet card, and every window
+build path (45 checks). `Tests/` is not referenced by the TOC, so it never
+loads in-game.
 
 ## Open source
 

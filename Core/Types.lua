@@ -67,3 +67,9 @@ function Types:ToughTypeIndexVs(enemyType)
     local e = self:ToIndex(enemyType)
     return e and WEAK[e] or nil
 end
+
+-- The enemy type this family deals +50% to (used for pet-card hints).
+function Types:FamilyStrongVs(familyTypeIndex)
+    local d = familyTypeIndex and STRONG[familyTypeIndex]
+    return d and self.NAME[d] or nil
+end

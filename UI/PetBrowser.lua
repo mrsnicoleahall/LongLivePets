@@ -1,7 +1,7 @@
 --[[ Long Live Pets ----------------------------------------------------------
   PetBrowser.lua — our own pet-collection window. Search and filter your owned
-  pets, then drop one into a battle slot. This is an original interface; it does
-  not modify or reskin the Blizzard pet journal.
+  pets, hover for a pet card, then drop one into a battle slot. This is an
+  original interface; it does not modify or reskin the Blizzard pet journal.
 ----------------------------------------------------------------------------]]
 
 local ns = _G.LongLivePets
@@ -12,14 +12,12 @@ ns.PetBrowser = Browser
 local ROW_H, MAX_ROWS = 22, 16
 
 local frame, rows
-local state = { activeSlot = 1, maxOnly = false, typeIndex = nil }
-
-local TYPE_COLORS  -- optional, falls back to white
+local state = { activeSlot = 1, maxOnly = false, typeIndex = nil, mode = "name" }
 
 local function build()
     frame = CreateFrame("Frame", "LongLivePetsBrowser", UIParent, "BackdropTemplate")
-    frame:SetSize(380, 520)
-    frame:SetPoint("CENTER", 200, 0)
+    frame:SetSize(390, 520)
+    frame:SetPoint("CENTER", 220, 0)
     frame:SetFrameStrata("HIGH")
     frame:SetMovable(true); frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
@@ -43,30 +41,26 @@ local function build()
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -6, -6)
 
-    -- search
+    -- row 1: search + search-mode toggle
     local search = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
-    search:SetSize(220, 22)
+    search:SetSize(210, 22)
     search:SetPoint("TOPLEFT", 16, -42)
-    search:SetScript("OnTextChanged", function(self)
-        if self.Instructions then end  -- template housekeeping
-        Browser:Refresh()
-    end)
+    search:SetScript("OnTextChanged", function() Browser:Refresh() end)
     frame.search = search
 
-    -- "25 only" toggle
-    local maxBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    maxBtn:SetSize(72, 22)
-    maxBtn:SetPoint("LEFT", search, "RIGHT", 10, 0)
-    maxBtn:SetText("Lv25: off")
-    maxBtn:SetScript("OnClick", function()
-        state.maxOnly = not state.maxOnly
-        maxBtn:SetText(state.maxOnly and "Lv25: on" or "Lv25: off")
+    local modeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    modeBtn:SetSize(120, 22)
+    modeBtn:SetPoint("LEFT", search, "RIGHT", 10, 0)
+    modeBtn:SetText("Find: name")
+    modeBtn:SetScript("OnClick", function()
+        state.mode = (state.mode == "name") and "ability" or "name"
+        modeBtn:SetText(state.mode == "ability" and "Find: ability" or "Find: name")
         Browser:Refresh()
     end)
 
-    -- type-filter cycle
+    -- row 2: type filter + Lv25 + active-slot selector
     local typeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    typeBtn:SetSize(150, 22)
+    typeBtn:SetSize(130, 22)
     typeBtn:SetPoint("TOPLEFT", 16, -70)
     typeBtn:SetText("Type: All")
     typeBtn:SetScript("OnClick", function()
@@ -76,17 +70,25 @@ local function build()
         typeBtn:SetText("Type: " .. (i and ns.Types.NAME[i] or "All"))
         Browser:Refresh()
     end)
-    frame.typeBtn = typeBtn
 
-    -- active-slot selector
+    local maxBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    maxBtn:SetSize(74, 22)
+    maxBtn:SetPoint("LEFT", typeBtn, "RIGHT", 8, 0)
+    maxBtn:SetText("Lv25: off")
+    maxBtn:SetScript("OnClick", function()
+        state.maxOnly = not state.maxOnly
+        maxBtn:SetText(state.maxOnly and "Lv25: on" or "Lv25: off")
+        Browser:Refresh()
+    end)
+
     local slotLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    slotLabel:SetPoint("TOPLEFT", typeBtn, "TOPRIGHT", 14, -4)
-    slotLabel:SetText("Slot into:")
+    slotLabel:SetPoint("LEFT", maxBtn, "RIGHT", 12, 0)
+    slotLabel:SetText("Slot:")
     frame.slotButtons = {}
     for s = 1, 3 do
         local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        b:SetSize(24, 22)
-        b:SetPoint("LEFT", slotLabel, "RIGHT", 4 + (s - 1) * 26, 0)
+        b:SetSize(22, 22)
+        b:SetPoint("LEFT", slotLabel, "RIGHT", 2 + (s - 1) * 24, 0)
         b:SetText(tostring(s))
         b:SetScript("OnClick", function()
             state.activeSlot = s
@@ -105,10 +107,14 @@ local function build()
         row:SetHeight(ROW_H)
         row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
         row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
+        row:EnableMouse(true)
+        row:SetScript("OnEnter", function(self)
+            if self.pet then ns.PetCard:Show(self, self.pet) end
+        end)
+        row:SetScript("OnLeave", function() ns.PetCard:Hide() end)
 
         local tex = row:CreateTexture(nil, "ARTWORK")
-        tex:SetSize(18, 18)
-        tex:SetPoint("LEFT", 0, 0)
+        tex:SetSize(18, 18); tex:SetPoint("LEFT", 0, 0)
         row.icon = tex
 
         local name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -118,9 +124,7 @@ local function build()
         row.name = name
 
         local slot = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-        slot:SetSize(56, 18)
-        slot:SetPoint("RIGHT", 0, 0)
-        slot:SetText("Slot")
+        slot:SetSize(56, 18); slot:SetPoint("RIGHT", 0, 0); slot:SetText("Slot")
         row.slot = slot
 
         row:Hide()
@@ -142,16 +146,16 @@ end
 
 function Browser:Refresh()
     if not frame then return end
-    local opts = {
-        search = frame.search and frame.search:GetText() or nil,
-        maxOnly = state.maxOnly,
-        typeIndex = state.typeIndex,
-    }
+    local text = frame.search and frame.search:GetText() or ""
+    local opts = { maxOnly = state.maxOnly, typeIndex = state.typeIndex }
+    if state.mode == "ability" then opts.ability = text else opts.search = text end
+
     local pets = ns.Roster:Filter(opts)
     frame.empty:SetShown(#pets == 0)
     for i, row in ipairs(rows) do
         local p = pets[i]
         if p then
+            row.pet = p
             if p.icon then row.icon:SetTexture(p.icon) end
             local typeName = p.petType and ns.Types.NAME[p.petType] or "?"
             row.name:SetText(("%s  |cffaaaaaaL%d %s|r"):format(p.name, p.level, typeName))
@@ -161,6 +165,7 @@ function Browser:Refresh()
             end)
             row:Show()
         else
+            row.pet = nil
             row:Hide()
         end
     end
