@@ -120,10 +120,16 @@ local function lineToTeam(line)
 end
 
 -- ---- public API -----------------------------------------------------------
+-- Encode a team object directly (used by export and by send-to-player).
+function Serialize:EncodeTeam(t)
+    if not t then return nil end
+    return "LLP1:" .. self.encode64(teamToLine(t))
+end
+
 function Serialize:ExportTeam(teamKey)
     local _, t = ns.Teams:Resolve(teamKey)
     if not t then ns:Print('No team "' .. tostring(teamKey) .. '".'); return end
-    return "LLP1:" .. self.encode64(teamToLine(t))
+    return self:EncodeTeam(t)
 end
 
 function Serialize:BackupAll()

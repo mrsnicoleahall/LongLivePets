@@ -39,6 +39,15 @@ local function newID()
     return id
 end
 
+-- Next ordering value within a group bucket (groupID may be nil = ungrouped).
+local function nextOrder(groupID)
+    local m = 0
+    for _, t in pairs(db().teams) do
+        if t.group == groupID and (t.order or 0) > m then m = t.order end
+    end
+    return m + 1
+end
+
 -- Save the currently slotted pets as a team. Updating by name preserves the
 -- team's group, notes, script, win record, and target bindings.
 function Teams:SaveCurrent(name)
@@ -67,6 +76,7 @@ function Teams:SaveCurrent(name)
         wins    = prev and prev.wins or 0,
         losses  = prev and prev.losses or 0,
         targets = prev and prev.targets,
+        order   = prev and prev.order or nextOrder(prev and prev.group or nil),
     }
 
     ns:Print((existingID and 'Updated team "' or 'Saved team "') .. name .. '".')
@@ -91,6 +101,7 @@ function Teams:CreateImported(parsed)
         wins    = 0, losses = 0,
         updated = time(),
         imported = true,
+        order   = nextOrder(group),
     }
     if ns.UI then ns.UI:Refresh() end
     return id
@@ -168,17 +179,51 @@ function Teams:SetLevelingSlot(key, slot, on)
     if ns.UI then ns.UI:Refresh() end
 end
 
--- Sorted, display-ready array.
+-- Sorted, display-ready array: by group order, then team order, then name.
 function Teams:List()
+    local groupOrder = {}
+    for gid, g in pairs(db().groups) do groupOrder[gid] = g.order or 0 end
+
     local out = {}
     for id, t in pairs(db().teams) do
         out[#out + 1] = {
             id = id, name = t.name or "(unnamed)",
             group = t.group, script = t.script, notes = t.notes,
             wins = t.wins or 0, losses = t.losses or 0,
+            order = t.order or 0,
             loaded = (id == db().loaded),
         }
     end
-    table.sort(out, function(a, b) return a.name:lower() < b.name:lower() end)
+    table.sort(out, function(a, b)
+        local ga = a.group and (groupOrder[a.group] or 0) or -1   -- ungrouped first
+        local gb = b.group and (groupOrder[b.group] or 0) or -1
+        if ga ~= gb then return ga < gb end
+        if a.order ~= b.order then return a.order < b.order end
+        return a.name:lower() < b.name:lower()
+    end)
     return out
+end
+
+-- Move a team to a position within a group bucket (groupID nil = ungrouped),
+-- renumbering that bucket. newIndex is 1-based; clamped.
+function Teams:Reorder(id, newGroupID, newIndex)
+    local t = db().teams[id]
+    if not t then return end
+    t.group = newGroupID
+
+    local bucket = {}
+    for tid, tt in pairs(db().teams) do
+        if tt.group == newGroupID and tid ~= id then bucket[#bucket + 1] = tid end
+    end
+    table.sort(bucket, function(a, b)
+        return (db().teams[a].order or 0) < (db().teams[b].order or 0)
+    end)
+
+    newIndex = newIndex or (#bucket + 1)
+    if newIndex < 1 then newIndex = 1 end
+    if newIndex > #bucket + 1 then newIndex = #bucket + 1 end
+    table.insert(bucket, newIndex, id)
+
+    for i, tid in ipairs(bucket) do db().teams[tid].order = i end
+    if ns.UI then ns.UI:Refresh() end
 end

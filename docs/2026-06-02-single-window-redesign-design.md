@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-02
 **Target version:** v0.6.0
-**Status:** design — awaiting approval
+**Status:** implemented and released in v0.6.0
 
 ## Goal
 

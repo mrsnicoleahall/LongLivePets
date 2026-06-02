@@ -36,8 +36,11 @@ local function help()
         "/llp find <text> | strong <type> | tough <type> | ability <text>",
         "/llp counter <type>        counter advice for an enemy type",
         "/llp record win|loss [team]",
+        "/llp build                 auto-build a counter team for your target",
+        "/llp send <team> => <player>   send a team to another LLP user",
+        "/llp accept                save a team someone sent you",
         "/llp minimap               toggle the minimap button",
-        "/llp list",
+        "/llp list                  (right-click a pet in the window to mark it)",
     }
     for _, l in ipairs(lines) do DEFAULT_CHAT_FRAME:AddMessage("  " .. l) end
 end
@@ -171,7 +174,16 @@ end
 
 handlers.minimap = function() ns.Minimap:Toggle() end
 
-handlers.pets = function() ns.PetBrowser:Toggle() end
+handlers.pets = function() ns.UI:Toggle() end
+
+handlers.send = function(rest)
+    local team, who = split(rest)
+    if team and who then ns.Comm:Send(team, who) else ns:Print("usage: /llp send <team> => <player>") end
+end
+
+handlers.accept = function() ns.Comm:Accept() end
+
+handlers.build = function() ns.UI:Show(); ns.UI:BuildCounter() end
 
 handlers.find = function(rest)
     local mode, arg = rest:match("^(%S+)%s+(.+)$")

@@ -27,6 +27,7 @@ function Roster:GetOwnedPets()
                 petID = petID, speciesID = speciesID,
                 name = (customName and customName ~= "" and customName) or name or "Pet",
                 level = level or 1, petType = petType, icon = icon, rarity = rarity,
+                marker = ns.Markers and ns.Markers:Get(speciesID) or nil,
             }
         end
     end
@@ -61,6 +62,8 @@ function Roster:Filter(opts)
         if ok and strongIdx and p.petType ~= strongIdx then ok = false end
         if ok and toughIdx and p.petType ~= toughIdx then ok = false end
         if ok and opts.rarity and (p.rarity or 0) < opts.rarity then ok = false end
+        if ok and opts.markedOnly and not p.marker then ok = false end
+        if ok and opts.marker and p.marker ~= opts.marker then ok = false end
         if ok and ability and not self:SpeciesHasAbilityText(p.speciesID, ability) then ok = false end
         if ok then out[#out + 1] = p end
     end

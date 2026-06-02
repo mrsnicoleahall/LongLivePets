@@ -35,7 +35,7 @@
 
 local ns = _G.LongLivePets
 
-local SCHEMA = 2
+local SCHEMA = 3
 
 function ns:InitDB()
     LongLivePetsDB = LongLivePetsDB or {}
@@ -47,6 +47,8 @@ function ns:InitDB()
     db.groups      = db.groups      or {}
     db.queue       = db.queue       or {}
     db.targets     = db.targets     or {}
+    db.markers     = db.markers     or {}   -- [speciesID] = raid icon index 1..8
+    db.enemyIntel  = db.enemyIntel  or {}   -- [npcID] = { name, types, species, seen }
     db.settings    = db.settings    or {}
 
     local s = db.settings

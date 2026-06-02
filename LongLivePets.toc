@@ -2,7 +2,7 @@
 ## Title: Long Live Pets
 ## Notes: Save, organize, and load battle-pet teams. An original pet team manager.|nIntegrates with tdBattlePetScript (optional) for scripted battles.
 ## Author: Nicole Hall
-## Version: 0.5.0
+## Version: 0.6.0
 ## SavedVariables: LongLivePetsDB
 ## OptionalDeps: tdBattlePetScript
 ## IconTexture: Interface\AddOns\LongLivePets\Textures\icon.png
@@ -12,6 +12,7 @@
 Core\Init.lua
 Core\Database.lua
 Core\Types.lua
+Core\Markers.lua
 Core\Loadout.lua
 Core\Roster.lua
 Core\Groups.lua
@@ -20,9 +21,11 @@ Core\Teams.lua
 Core\Targets.lua
 Core\Serialize.lua
 Core\Battle.lua
-UI\MainWindow.lua
+Core\EnemyIntel.lua
+Core\CounterBuilder.lua
+Core\Comm.lua
 UI\PetCard.lua
-UI\PetBrowser.lua
+UI\Main.lua
 UI\Minimap.lua
 Integration\tdBattlePetScript.lua
 Core\Slash.lua

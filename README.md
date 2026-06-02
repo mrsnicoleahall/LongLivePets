@@ -4,10 +4,11 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.5 — team manager + pet browser with hover cards & ability
-> search, in its own interface.** Everything below is implemented and covered by
-> an automated test suite (45 checks). The companion battle-script engine
-> (tdBattlePetScript) is bundled.
+> **Status: v0.6 — one window, everything in it.** Collection, your loaded team,
+> and saved teams sit side by side in a single 3-panel window (no more popups).
+> Drag pets onto slots, drag teams to reorder, mark pets, send a team to a
+> friend, and auto-build a counter team. Covered by a 60-check automated suite.
+> The battle-script engine (tdBattlePetScript) is bundled.
 
 This is an **original, independent project**. It is written from scratch and
 contains **no code from Rematch or any other addon**. Long Live Pets uses its
@@ -19,6 +20,17 @@ acknowledgements at the bottom.
 
 ## Features
 
+- **One 3-panel window** — Collection · Loaded Team · Teams, all visible at
+  once. The pet card, import/export, and share are inline — no separate windows.
+- **Drag-and-drop** — drag a pet onto a slot; drag teams to reorder (or use the
+  ▲▼ buttons). Click also works everywhere.
+- **Pet markers** — right-click a pet to tag it with a raid icon (★/◆/🌙/…);
+  filter the collection to just marked pets.
+- **Send-to-player** — select a team, type a name, **Send** — it arrives for any
+  other Long Live Pets user to save.
+- **Auto counter-team builder** — Long Live Pets *learns* each tamer's pets from
+  your battles, then **⚔ Build Counter** picks your best 3 against them (by the
+  type wheel) and explains why, with one-click load. Rematch can't do this.
 - **Teams** — save the slotted pets (with their chosen abilities) as a named
   team and reload them in one click. Rename, delete, list.
 - **Groups** — organize teams into folders; the window shows them grouped.
@@ -67,6 +79,9 @@ acknowledgements at the bottom.
 /llp pets                     open the pet browser
 /llp find <text> | strong <type> | tough <type>
 /llp counter <type>           counter advice for an enemy type
+/llp build                    auto-build a counter team for your target
+/llp send <team> => <player>  send a team to another LLP user
+/llp accept                   save a team someone sent you
 /llp record win|loss [team]
 /llp minimap                  toggle the minimap button
 /llp list
@@ -105,14 +120,14 @@ and it hands off to tdBattlePetScript when that team loads.
 
 ## Roadmap
 
-Done: team manager (groups, notes, W/L, targets, queue, import/export), an
-original pet browser with filters, hover pet cards, and ability-text search.
-Still ahead:
+Done: the single 3-panel window, drag-and-drop, pet markers, send-to-player, the
+auto counter-team builder, plus the full team manager (groups, notes, W/L,
+targets, queue, import/export), pet browser with filters, hover cards, and
+ability-text search. Still ahead:
 
 - A flip-to-back lore view on the pet card
-- Pet markers (star / diamond / moon, etc.)
-- Drag-and-drop reordering of teams and groups
-- Send-a-team-to-another-player (addon comms)
+- Cross-faction / cross-realm sending
+- A public team-code directory
 - Tighter two-way tdBattlePetScript integration (run the linked script on load)
 
 Contributions and bug reports welcome.
@@ -126,10 +141,11 @@ outside the game:
 luajit Tests/headless.lua      # run from the repo root
 ```
 
-It exercises teams, groups, notes, win/loss, import/export/backup, targets, the
-leveling queue, roster + ability-text filters, the pet card, and every window
-build path (45 checks). `Tests/` is not referenced by the TOC, so it never
-loads in-game.
+It exercises teams (incl. reorder), groups, notes, win/loss, import/export/backup,
+targets, the leveling queue, roster + ability + marker filters, the pet card,
+send-to-player chunk/reassemble, enemy-intel capture, the counter-team builder,
+and every window build path (60 checks). `Tests/` is not referenced by the TOC,
+so it never loads in-game.
 
 ## Open source
 

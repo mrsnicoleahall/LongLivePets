@@ -59,12 +59,17 @@ local abilityById = {
 }
 local speciesAbilities = { [100] = {1}, [200] = {2}, [300] = {3}, [400] = {4}, [500] = {4} }
 
+local enemyComp = { 9, 9, 6 }   -- Aquatic, Aquatic, Magic
+local inBattle = false          -- declared before the closure that captures it
 C_PetBattles = {
-  IsInBattle = function() return false end,
+  IsInBattle = function() return inBattle end,
   GetAbilityInfoByID = function(id)
     local a = abilityById[id]; if not a then return end
     return id, a.name, "icon", 0, a.desc, 1, 1, false
   end,
+  GetNumPets = function() return #enemyComp end,
+  GetPetType = function(_, i) return enemyComp[i] end,
+  GetPetSpeciesID = function(_, i) return 1000 + i end,
 }
 C_AddOns = {
   GetAddOnMetadata = function(_, k) return k == "Version" and "0.3.0" or nil end,
@@ -76,6 +81,8 @@ local curTarget   -- guid string or nil
 function UnitExists(u) return u == "target" and curTarget ~= nil end
 function UnitIsPlayer() return false end
 function UnitGUID(u) return u == "target" and curTarget or nil end
+function UnitName(u) return "Tamer Joe" end
+C_ChatInfo = { SendAddonMessage = function() end, RegisterAddonMessagePrefix = function() end }
 
 -- ---- pet journal mock -----------------------------------------------------
 local mockPets = {
@@ -131,10 +138,11 @@ C_PetJournal = {
 -- ---- load addon in TOC order ----------------------------------------------
 local ns = {}
 local files = {
-  "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Loadout.lua",
-  "Core/Roster.lua", "Core/Groups.lua", "Core/Queue.lua", "Core/Teams.lua",
-  "Core/Targets.lua", "Core/Serialize.lua", "Core/Battle.lua",
-  "UI/MainWindow.lua", "UI/PetCard.lua", "UI/PetBrowser.lua", "UI/Minimap.lua",
+  "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Markers.lua",
+  "Core/Loadout.lua", "Core/Roster.lua", "Core/Groups.lua", "Core/Queue.lua",
+  "Core/Teams.lua", "Core/Targets.lua", "Core/Serialize.lua", "Core/Battle.lua",
+  "Core/EnemyIntel.lua", "Core/CounterBuilder.lua", "Core/Comm.lua",
+  "UI/PetCard.lua", "UI/Main.lua", "UI/Minimap.lua",
   "Integration/tdBattlePetScript.lua", "Core/Slash.lua",
 }
 for _, f in ipairs(files) do assert(loadfile(f))("LongLivePets", ns) end
@@ -145,7 +153,7 @@ local function slash(c) SlashCmdList["LONGLIVEPETS"](c) end
 -- ===========================================================================
 print("\n[1] lifecycle"); fire("ADDON_LOADED", "LongLivePets"); fire("PLAYER_LOGIN")
 check(type(LongLivePetsDB) == "table", "DB initialized")
-check(LongLivePetsDB.schema == 2, "schema v2")
+check(LongLivePetsDB.schema == 3, "schema v3")
 
 print("\n[2] save / load / abilities")
 setSlots({ [1]={petID="PET-A",a1=11,a2=12,a3=13},
@@ -267,6 +275,55 @@ check(pcall(function() ns.UI:ShowText("t","export","blob") end), "copy dialog bu
 check(pcall(function() ns.PetBrowser:Show(); ns.PetBrowser:Refresh() end), "pet browser builds + refreshes")
 check(pcall(function() ns.Minimap:Create() end), "minimap button builds")
 check(pcall(function() ns.PetCard:Show(ns.frame, { name="X", petType=1, level=1, petID="PET-A", speciesID=100 }) end), "pet card renders")
+
+print("\n[16] pet markers")
+ns.Markers:Set(100, 5)                      -- mark species 100 (Alpha)
+check(ns.Markers:Get(100) == 5, "marker set")
+check(#ns.Roster:Filter({ markedOnly = true }) == 1, "marked-only filter")
+check(#ns.Roster:Filter({ marker = 5 }) == 1, "specific-marker filter")
+check(ns.Markers:Cycle(200) == 1, "cycle adds a marker")
+ns.Markers:Clear(100); ns.Markers:Clear(200)
+check(ns.Markers:Get(100) == nil, "marker cleared")
+
+print("\n[17] team reorder")
+wipe(ns.db.teams); ns.db.nextID = 1
+setSlots({ [1] = { petID = "PET-A" } })
+slash("save Alpha"); slash("save Bravo"); slash("save Charlie")
+local function names()
+  local out = {}; for _, x in ipairs(ns.Teams:List()) do out[#out + 1] = x.name end
+  return table.concat(out, ",")
+end
+check(names() == "Alpha,Bravo,Charlie", "initial order by creation")
+ns.Teams:Reorder((select(1, ns.Teams:GetByName("Charlie"))), nil, 1)
+check(names() == "Charlie,Alpha,Bravo", "reorder moves Charlie to front")
+
+print("\n[18] send-to-player (chunk + reassemble + accept)")
+wipe(ns.db.teams); ns.db.nextID = 1
+setSlots({ [1] = { petID = "PET-A", a1 = 11, a2 = 12, a3 = 13 } })
+slash("save SendMe")
+local _, st = ns.Teams:GetByName("SendMe")
+local wire = ns.Serialize:EncodeTeam(st)
+local chunks = ns.Comm:Chunk(wire, 20)
+check(#chunks > 1, "team splits into chunks")
+for i, c in ipairs(chunks) do ns.Comm:Receive("Friend", ("%d|%d|%s"):format(i, #chunks, c)) end
+check(ns.Comm.pending ~= nil, "incoming team is pending")
+local before = #ns.Teams:List()
+ns.Comm:Accept()
+check(#ns.Teams:List() == before + 1, "accepted team is saved")
+
+print("\n[19] enemy intel + auto counter-team builder")
+ns.EnemyIntel:Record(555, "Joe", { 9, 9, 6 }, {})
+check(ns.EnemyIntel:Get(555) and #ns.EnemyIntel:Get(555).types == 3, "intel recorded")
+curTarget = "Creature-0-3299-0-0-777-000ABCDEF0"; inBattle = true
+fire("PET_BATTLE_OPENING_START"); fire("PET_BATTLE_OPENING_DONE"); inBattle = false
+local intel = ns.EnemyIntel:Get(777)
+check(intel and intel.types[1] == 9, "enemy comp captured from a battle")
+local res = ns.CounterBuilder:Build({ types = { 9, 9, 6 } }, ns.Roster:GetOwnedPets())
+check(#res.picks == 3, "builder returns 3 picks")
+local hasFlying = false
+for _, p in ipairs(res.picks) do if p.pet.petType == 3 then hasFlying = true end end
+check(hasFlying, "builder picks a Flying counter vs Aquatic enemies")
+check(res.covered >= 2, "builder covers the enemy comp")
 
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)
