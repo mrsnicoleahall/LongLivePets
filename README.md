@@ -76,6 +76,19 @@ addon as long as DengSir's copyright and license are kept intact.
 
 Contributions and bug reports welcome.
 
+## Development
+
+Core logic has a headless test harness that mocks the WoW API so it can run
+outside the game:
+
+```
+luajit Tests/headless.lua      # run from the repo root
+```
+
+It exercises save / load / rename / delete / script-linking, input guards, and
+the window build path (19 checks). `Tests/` is not referenced by the TOC, so it
+never loads in-game.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). © 2026 Nicole Hall.
