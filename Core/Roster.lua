@@ -58,6 +58,7 @@ function Roster:Filter(opts)
         if ok and opts.maxOnly and p.level ~= 25 then ok = false end
         if ok and opts.level and p.level ~= opts.level then ok = false end
         if ok and opts.minLevel and p.level < opts.minLevel then ok = false end
+        if ok and opts.maxLevel and p.level > opts.maxLevel then ok = false end
         if ok and opts.typeIndex and p.petType ~= opts.typeIndex then ok = false end
         if ok and strongIdx and p.petType ~= strongIdx then ok = false end
         if ok and toughIdx and p.petType ~= toughIdx then ok = false end

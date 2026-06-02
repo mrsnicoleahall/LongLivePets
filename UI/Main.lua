@@ -64,6 +64,49 @@ local function btn(parent, label, w, h)
     return b
 end
 
+-- A small self-contained dropdown (no dependency on Blizzard dropdown
+-- templates). options = { { text=, value= }, ... }. onSelect(value) fires on
+-- pick. Returns the button; call dd:SelectText(text) to set the shown label.
+local openMenu
+local function makeDropdown(parent, w, options, onSelect, initialText)
+    local dd = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    dd:SetSize(w, 20); dd:SetText(initialText or "")
+    function dd:SelectText(t) self:SetText(t) end
+
+    local menu = CreateFrame("Frame", nil, dd, "BackdropTemplate")
+    menu:SetFrameStrata("DIALOG"); menu:SetPoint("TOPLEFT", dd, "BOTTOMLEFT", 0, -2)
+    if menu.SetBackdrop then
+        menu:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+        menu:SetBackdropColor(0.05, 0.05, 0.07, 1)
+        menu:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    end
+    menu:Hide()
+
+    local y = 4
+    for _, opt in ipairs(options) do
+        local ob = CreateFrame("Button", nil, menu)
+        ob:SetSize(w - 8, 18); ob:SetPoint("TOPLEFT", 4, -y)
+        ob:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        local t = ob:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        t:SetPoint("LEFT", 4, 0); t:SetJustifyH("LEFT"); t:SetText(opt.text)
+        ob:SetScript("OnClick", function()
+            dd:SetText(opt.text); menu:Hide(); openMenu = nil
+            onSelect(opt.value)
+        end)
+        y = y + 18
+    end
+    menu:SetSize(w, y + 4)
+
+    dd:SetScript("OnClick", function()
+        if openMenu and openMenu ~= menu then openMenu:Hide() end
+        if menu:IsShown() then menu:Hide(); openMenu = nil
+        else menu:Show(); openMenu = menu end
+    end)
+    return dd
+end
+
 -- ===========================================================================
 -- BUILD
 -- ===========================================================================
@@ -101,6 +144,7 @@ local function build()
 
     UI:BuildCollection()
     UI:BuildLoadout()
+    UI:BuildMoves()
     UI:BuildTeams()
     UI:BuildImportExport()
 end
@@ -121,15 +165,35 @@ function UI:BuildCollection()
         modeBtn:SetText(state.mode); UI:RefreshCollection()
     end)
 
-    local typeBtn = btn(frame, "Type: All", 110, 20); typeBtn:SetPoint("TOPLEFT", 16, -84)
-    typeBtn:SetScript("OnClick", function()
-        local i = (state.typeIndex or 0) + 1; if i > 10 then i = nil end
-        state.typeIndex = i; typeBtn:SetText("Type: " .. (i and ns.Types.NAME[i] or "All")); UI:RefreshCollection()
-    end)
-    local maxBtn = btn(frame, "Lv25", 50, 20); maxBtn:SetPoint("LEFT", typeBtn, "RIGHT", 6, 0)
-    maxBtn:SetScript("OnClick", function() state.maxOnly = not state.maxOnly; maxBtn:SetText(state.maxOnly and "Lv25*" or "Lv25"); UI:RefreshCollection() end)
-    local markBtn = btn(frame, "★", 28, 20); markBtn:SetPoint("LEFT", maxBtn, "RIGHT", 6, 0)
-    markBtn:SetScript("OnClick", function() state.markedOnly = not state.markedOnly; UI:RefreshCollection() end)
+    -- Type dropdown (All + the 10 families)
+    local typeOpts = { { text = "Type: All", value = nil } }
+    for i = 1, 10 do typeOpts[#typeOpts + 1] = { text = ns.Types.NAME[i], value = i } end
+    local typeDD = makeDropdown(frame, 110, typeOpts, function(v)
+        state.typeIndex = v; UI:RefreshCollection()
+    end, "Type: All")
+    typeDD:SetPoint("TOPLEFT", 16, -84)
+
+    -- Level dropdown
+    local levelDD = makeDropdown(frame, 96, {
+        { text = "All levels", value = "all" },
+        { text = "Level 25", value = "max" },
+        { text = "Leveling (1-24)", value = "low" },
+    }, function(v)
+        state.maxOnly = (v == "max"); state.maxLevel = (v == "low") and 24 or nil
+        UI:RefreshCollection()
+    end, "All levels")
+    levelDD:SetPoint("LEFT", typeDD, "RIGHT", 6, 0)
+
+    -- More filters dropdown
+    local moreDD = makeDropdown(frame, 96, {
+        { text = "All pets", value = "all" },
+        { text = "Marked only", value = "marked" },
+        { text = "Rare+ only", value = "rare" },
+    }, function(v)
+        state.markedOnly = (v == "marked"); state.rarity = (v == "rare") and 4 or nil
+        UI:RefreshCollection()
+    end, "Filter")
+    moreDD:SetPoint("LEFT", levelDD, "RIGHT", 6, 0)
 
     local list = CreateFrame("Frame", nil, frame)
     list:SetPoint("TOPLEFT", 16, -110); list:SetSize(218, ROW_H * COL_ROWS)
@@ -150,10 +214,9 @@ function UI:BuildCollection()
             if mouse == "RightButton" then
                 ns.Markers:Cycle(self.pet.speciesID)
             else
-                -- fill the active slot, then advance so clicking 3 pets builds a team
+                -- fill the active slot and show that pet's card + moves
                 state.selectedPet = self.pet
                 placePet(self.pet, state.activeSlot)
-                state.activeSlot = (state.activeSlot % 3) + 1
                 UI:ShowCard(self.pet)
             end
         end)
@@ -197,14 +260,74 @@ function UI:BuildLoadout()
     local build = btn(frame, "\226\154\148 Build Counter", 130, 20); build:SetPoint("LEFT", reload, "RIGHT", 6, 0)
     build:SetScript("OnClick", function() UI:BuildCounter() end)
 
-    -- counter / card area
+    -- counter / card area (below the moves picker)
     local strip = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    strip:SetPoint("TOPLEFT", 250, -168); strip:SetWidth(210); strip:SetJustifyH("LEFT"); strip:SetSpacing(2)
+    strip:SetPoint("TOPLEFT", 250, -290); strip:SetWidth(212); strip:SetJustifyH("LEFT"); strip:SetSpacing(2)
     strip:SetText("Hover a pet for its card.\nClick a pet to slot it.")
     frame.strip = strip
 
     frame.counterLoad = btn(frame, "Load these picks", 130, 20)
     frame.counterLoad:SetPoint("BOTTOMLEFT", 250, 16); frame.counterLoad:Hide()
+end
+
+-- ---- MOVES picker (center, below the buttons) -----------------------------
+function UI:BuildMoves()
+    frame.movesLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    frame.movesLabel:SetPoint("TOPLEFT", 250, -166); frame.movesLabel:SetText("Moves")
+
+    frame.moveBtns = {}
+    for i = 1, 3 do
+        frame.moveBtns[i] = {}
+        for j = 1, 2 do
+            local b = CreateFrame("Button", nil, frame)
+            b:SetSize(26, 26)
+            b:SetPoint("TOPLEFT", 250 + (j - 1) * 30, -184 - (i - 1) * 30)
+            b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetAllPoints()
+            b.sel = b:CreateTexture(nil, "OVERLAY")
+            b.sel:SetPoint("TOPLEFT", -2, 2); b.sel:SetPoint("BOTTOMRIGHT", 2, -2)
+            b.sel:SetTexture("Interface\\Buttons\\CheckButtonHilight"); b.sel:SetBlendMode("ADD"); b.sel:Hide()
+            b:SetScript("OnClick", function(self)
+                if self.abilityID and not self.locked then
+                    ns.Abilities:Set(state.activeSlot, i, self.abilityID)
+                    UI:RefreshMoves()
+                end
+            end)
+            b:SetScript("OnEnter", function(self)
+                if self.ability then
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:AddLine(self.ability.name)
+                    if self.locked then GameTooltip:AddLine("Unlocks at level " .. (self.ability.reqLevel or "?"), 1, .3, .3) end
+                    if self.ability.desc then GameTooltip:AddLine(self.ability.desc, .9, .9, .9, true) end
+                    GameTooltip:Show()
+                end
+            end)
+            b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            b:Hide()
+            frame.moveBtns[i][j] = b
+        end
+    end
+end
+
+function UI:RefreshMoves()
+    if not frame or not frame.moveBtns then return end
+    local slots = ns.Abilities:GetLayout(state.activeSlot)
+    frame.movesLabel:SetText(slots and ("Moves — slot " .. state.activeSlot .. " (click to choose)") or "Moves — slot is empty")
+    for i = 1, 3 do
+        for j = 1, 2 do
+            local b = frame.moveBtns[i][j]
+            local opt = slots and slots[i] and slots[i][j]
+            if opt then
+                b.abilityID = opt.id; b.ability = opt; b.locked = opt.locked
+                b.ico:SetTexture(opt.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                b.ico:SetDesaturated(opt.locked and true or false)
+                b:SetAlpha(opt.locked and 0.4 or 1)
+                b.sel:SetShown(opt.selected and true or false)
+                b:Show()
+            else
+                b.abilityID = nil; b.ability = nil; b:Hide()
+            end
+        end
+    end
 end
 
 -- ---- TEAMS (right) --------------------------------------------------------
@@ -293,7 +416,10 @@ end
 
 function UI:RefreshCollection()
     if not frame then return end
-    local opts = { maxOnly = state.maxOnly, typeIndex = state.typeIndex, markedOnly = state.markedOnly }
+    local opts = {
+        maxOnly = state.maxOnly, maxLevel = state.maxLevel, typeIndex = state.typeIndex,
+        markedOnly = state.markedOnly, rarity = state.rarity,
+    }
     if state.mode == "ability" then opts.ability = state.search else opts.search = state.search end
     local pets = ns.Roster:Filter(opts)
     frame.colEmpty:SetShown(#pets == 0)
@@ -319,6 +445,7 @@ function UI:RefreshLoadout()
     end
     local id = ns.db and ns.db.loaded
     frame.nameBox:SetText(id and ns.db.teams[id] and ns.db.teams[id].name or "")
+    self:RefreshMoves()
 end
 
 function UI:RefreshTeams()

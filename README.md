@@ -43,9 +43,12 @@ acknowledgements at the bottom.
   slot and it auto-fills from the queue. Maxed pets drop off automatically.
 - **Import / export / backup** — share a team as a compact string, or back up
   every team at once; paste to import.
-- **Pet browser** — our own window to search and filter your collection by
-  name, type, level (25-only), and counters (Strong Vs / Tough Vs), then drop a
-  pet straight into a battle slot. (`/llp pets`)
+- **Pet browser** — filter your collection with **dropdowns** (Type, Level, and
+  a More filter for marked/rare), plus name or ability-text search. Click a pet
+  to slot it.
+- **Move selection** — pick each loaded pet's abilities right in the window:
+  the center panel shows all 3 ability slots × 2 options; click to choose
+  (locked options show their unlock level).
 - **Pet cards** — hover any pet in the browser for a card with its stats
   (health / power / speed), type, rarity, source, and flavor text.
 - **Ability search** — flip the browser's search to "ability" mode (or use
@@ -144,7 +147,7 @@ luajit Tests/headless.lua      # run from the repo root
 It exercises teams (incl. reorder), groups, notes, win/loss, import/export/backup,
 targets, the leveling queue, roster + ability + marker filters, the pet card,
 send-to-player chunk/reassemble, enemy-intel capture, the counter-team builder,
-and every window build path (60 checks). `Tests/` is not referenced by the TOC,
+and every window build path (64 checks). `Tests/` is not referenced by the TOC,
 so it never loads in-game.
 
 ## Open source

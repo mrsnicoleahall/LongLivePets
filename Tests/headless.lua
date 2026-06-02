@@ -142,7 +142,7 @@ C_PetJournal = {
 local ns = {}
 local files = {
   "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Markers.lua",
-  "Core/Loadout.lua", "Core/Roster.lua", "Core/Groups.lua", "Core/Queue.lua",
+  "Core/Loadout.lua", "Core/Roster.lua", "Core/Abilities.lua", "Core/Groups.lua", "Core/Queue.lua",
   "Core/Teams.lua", "Core/Targets.lua", "Core/Serialize.lua", "Core/Battle.lua",
   "Core/EnemyIntel.lua", "Core/CounterBuilder.lua", "Core/Comm.lua",
   "UI/PetCard.lua", "UI/Main.lua", "UI/Minimap.lua",
@@ -327,6 +327,15 @@ local hasFlying = false
 for _, p in ipairs(res.picks) do if p.pet.petType == 3 then hasFlying = true end end
 check(hasFlying, "builder picks a Flying counter vs Aquatic enemies")
 check(res.covered >= 2, "builder covers the enemy comp")
+
+print("\n[20] level filter + ability/moves layout")
+check(#ns.Roster:Filter({ maxLevel = 24 }) == 3, "maxLevel filter (below 25)")
+speciesAbilities[100] = { 1, 2, 3, 4, 1, 2 }   -- give Alpha 6 abilities (after the ability-search test)
+setSlots({ [1] = { petID = "PET-A", a1 = 1, a2 = 2, a3 = 3 } })
+local layout = ns.Abilities:GetLayout(1)
+check(layout and #layout == 3, "ability layout has 3 slots")
+check(layout[1][1] and layout[1][1].id == 1 and layout[1][1].selected, "slot 1 option A is the selected ability")
+check(layout[1][2] and layout[1][2].id == 4, "slot 1 option B is the alternate ability")
 
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)
