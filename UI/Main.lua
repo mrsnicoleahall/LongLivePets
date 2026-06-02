@@ -174,7 +174,7 @@ function UI:BuildCollection()
     typeDD:SetPoint("TOPLEFT", 16, -84)
 
     -- Level dropdown
-    local levelDD = makeDropdown(frame, 96, {
+    local levelDD = makeDropdown(frame, 108, {
         { text = "All levels", value = "all" },
         { text = "Level 25", value = "max" },
         { text = "Leveling (1-24)", value = "low" },
@@ -184,19 +184,19 @@ function UI:BuildCollection()
     end, "All levels")
     levelDD:SetPoint("LEFT", typeDD, "RIGHT", 6, 0)
 
-    -- More filters dropdown
-    local moreDD = makeDropdown(frame, 96, {
+    -- More filters dropdown (its own row, so the filter bar stays in-column)
+    local moreDD = makeDropdown(frame, 110, {
         { text = "All pets", value = "all" },
         { text = "Marked only", value = "marked" },
         { text = "Rare+ only", value = "rare" },
     }, function(v)
         state.markedOnly = (v == "marked"); state.rarity = (v == "rare") and 4 or nil
         UI:RefreshCollection()
-    end, "Filter")
-    moreDD:SetPoint("LEFT", levelDD, "RIGHT", 6, 0)
+    end, "Filter: all")
+    moreDD:SetPoint("TOPLEFT", 16, -108)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 16, -110); list:SetSize(218, ROW_H * COL_ROWS)
+    list:SetPoint("TOPLEFT", 16, -134); list:SetSize(226, ROW_H * COL_ROWS)
     for i = 1, COL_ROWS do
         local row = CreateFrame("Button", nil, list)
         row:SetHeight(ROW_H); row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H); row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
