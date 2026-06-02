@@ -150,11 +150,15 @@ local function build()
         c:SetPoint("BOTTOMRIGHT", frame, "BOTTOMLEFT", x2, 12)
         if c.SetBackdrop then
             c:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
-                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14,
                 insets = { left = 3, right = 3, top = 3, bottom = 3 } })
-            c:SetBackdropColor(1, 1, 1, 0.04)
-            c:SetBackdropBorderColor(0.5, 0.5, 0.55, 0.8)
+            c:SetBackdropColor(0.03, 0.04, 0.06, 0.92)
+            c:SetBackdropBorderColor(0.55, 0.5, 0.35, 0.9)
         end
+        -- a gold divider under the column title for structure
+        local div = c:CreateTexture(nil, "ARTWORK")
+        div:SetPoint("TOPLEFT", 6, -23); div:SetPoint("TOPRIGHT", -6, -23); div:SetHeight(1)
+        div:SetColorTexture(0.55, 0.45, 0.2, 0.7)
         return c
     end
     columnFrame(10, 248)    -- Collection
