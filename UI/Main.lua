@@ -28,35 +28,27 @@ local state = {
     selectedTeam = nil, selectedPet = nil,
 }
 
--- ---- drag support ---------------------------------------------------------
-local pendingDrag, dragFrame
-local function startDrag(pet)
-    pendingDrag = pet
-    if not dragFrame then
-        dragFrame = CreateFrame("Frame", nil, UIParent)
-        dragFrame:SetSize(28, 28); dragFrame:SetFrameStrata("TOOLTIP")
-        dragFrame.tex = dragFrame:CreateTexture(nil, "OVERLAY")
-        dragFrame.tex:SetAllPoints()
-        dragFrame:Hide()
-    end
-    dragFrame.tex:SetTexture(pet.icon)
-    dragFrame:Show()
-    dragFrame:SetScript("OnUpdate", function()
-        local x, y = GetCursorPosition()
-        local s = UIParent:GetEffectiveScale()
-        dragFrame:ClearAllPoints()
-        dragFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / s, y / s)
-    end)
-end
-local function stopDrag()
-    pendingDrag = nil
-    if dragFrame then dragFrame:Hide(); dragFrame:SetScript("OnUpdate", nil) end
-end
+-- ---- slotting -------------------------------------------------------------
+-- Click-to-slot is the reliable path. Drag uses WoW's NATIVE pet cursor
+-- (C_PetJournal.PickupPet) so the loadout slots receive it correctly.
 local function placePet(pet, slot)
     if not pet then return end
     ns.Roster:SlotPet(pet.petID, slot)
-    ns:Print(("Put %s into slot %d."):format(pet.name, slot))
     UI:RefreshLoadout()
+end
+
+-- If a battle pet is sitting on the game cursor, drop it into `slot`.
+local function dropCursorPet(slot)
+    local kind, a1 = GetCursorInfo()
+    if kind == "battlepet" and a1 then
+        if not (C_PetBattles and C_PetBattles.IsInBattle and C_PetBattles.IsInBattle()) then
+            C_PetJournal.SetPetLoadOutInfo(slot, a1)
+        end
+        ClearCursor()
+        UI:RefreshLoadout()
+        return true
+    end
+    return false
 end
 
 -- ---- small builders -------------------------------------------------------
@@ -85,8 +77,6 @@ local function build()
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
     frame:SetClampedToScreen(true)
-    -- a global mouse-up ends a drag that was dropped on nothing
-    frame:SetScript("OnMouseUp", function() if pendingDrag then stopDrag() end end)
     if frame.SetBackdrop then
         frame:SetBackdrop({
             bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -95,6 +85,10 @@ local function build()
             insets = { left = 8, right = 8, top = 8, bottom = 8 },
         })
     end
+    -- opaque backing so the world doesn't show through the window
+    local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
+    bg:SetPoint("TOPLEFT", 6, -6); bg:SetPoint("BOTTOMRIGHT", -6, 6)
+    bg:SetColorTexture(0.04, 0.04, 0.06, 1)
     frame:Hide()
 
     local icon = frame:CreateTexture(nil, "ARTWORK")
@@ -152,13 +146,20 @@ function UI:BuildCollection()
         nm:SetPoint("LEFT", mk, "RIGHT", 3, 0); nm:SetPoint("RIGHT", 0, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
 
         row:SetScript("OnClick", function(self, mouse)
+            if not self.pet then return end
             if mouse == "RightButton" then
                 ns.Markers:Cycle(self.pet.speciesID)
             else
-                state.selectedPet = self.pet; placePet(self.pet, state.activeSlot); UI:ShowCard(self.pet)
+                -- fill the active slot, then advance so clicking 3 pets builds a team
+                state.selectedPet = self.pet
+                placePet(self.pet, state.activeSlot)
+                state.activeSlot = (state.activeSlot % 3) + 1
+                UI:ShowCard(self.pet)
             end
         end)
-        row:SetScript("OnDragStart", function(self) if self.pet then startDrag(self.pet) end end)
+        row:SetScript("OnDragStart", function(self)
+            if self.pet and C_PetJournal.PickupPet then C_PetJournal.PickupPet(self.pet.petID) end
+        end)
         row:SetScript("OnEnter", function(self) if self.pet then UI:ShowCard(self.pet) end end)
         row:Hide(); colRows[i] = row
     end
@@ -176,9 +177,11 @@ function UI:BuildLoadout()
         b:RegisterForClicks("LeftButtonUp")
         b:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
         b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetSize(38, 38); b.ico:SetPoint("CENTER")
-        b:SetScript("OnClick", function() state.activeSlot = s; UI:RefreshLoadout() end)
-        b:SetScript("OnReceiveDrag", function() if pendingDrag then placePet(pendingDrag, s); stopDrag() end end)
-        b:SetScript("OnMouseUp", function() if pendingDrag then placePet(pendingDrag, s); stopDrag() end end)
+        b:SetScript("OnClick", function()
+            -- if a pet is on the cursor, drop it here; otherwise make this the active slot
+            if not dropCursorPet(s) then state.activeSlot = s; UI:RefreshLoadout() end
+        end)
+        b:SetScript("OnReceiveDrag", function() dropCursorPet(s) end)
         frame.slots[s] = b
     end
 

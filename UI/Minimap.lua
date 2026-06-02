@@ -9,13 +9,14 @@ local Minimap_ = {}
 ns.Minimap = Minimap_
 
 local button
-local RADIUS = 80
 
 local function position()
     if not button then return end
     local angle = math.rad(ns.db.settings.minimap.angle or 215)
+    -- sit just OUTSIDE the minimap edge, whatever size the minimap is
+    local r = (Minimap:GetWidth() or 140) / 2 + 8
     button:SetPoint("CENTER", Minimap, "CENTER",
-        RADIUS * math.cos(angle), RADIUS * math.sin(angle))
+        r * math.cos(angle), r * math.sin(angle))
 end
 
 function Minimap_:Create()

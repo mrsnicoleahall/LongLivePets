@@ -49,6 +49,9 @@ DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) end }   -- quiet
 Enum = { BattlePetOwner = { Ally = 0, Enemy = 1 } }
 GameTooltip = makeFrame()
 Minimap = makeFrame()
+Minimap.GetWidth = function() return 140 end   -- numeric for the button radius
+function GetCursorInfo() return nil end
+function ClearCursor() end
 
 -- ability data: id -> {name, desc}; species -> {ability ids}
 local abilityById = {
