@@ -1,0 +1,18 @@
+## Interface: 120000
+## Title: Long Live Pets
+## Notes: Save, organize, and load battle-pet teams. An original pet team manager.|nIntegrates with tdBattlePetScript (optional) for scripted battles.
+## Author: Nicole Hall
+## Version: 0.1.0
+## SavedVariables: LongLivePetsDB
+## OptionalDeps: tdBattlePetScript
+## IconTexture: Interface\Icons\INV_Pet_Achievement_CaptureAWildPet
+## X-License: MIT
+## Category-enUS: Pet Battles
+
+Core\Init.lua
+Core\Database.lua
+Core\Loadout.lua
+Core\Teams.lua
+UI\MainWindow.lua
+Integration\tdBattlePetScript.lua
+Core\Slash.lua
