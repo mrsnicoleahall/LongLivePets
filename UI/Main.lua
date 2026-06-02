@@ -366,7 +366,7 @@ function UI:BuildLoadout()
     frame.slots = {}
     for s = 1, 3 do
         local b = CreateFrame("Button", nil, frame)
-        b:SetSize(44, 44); b:SetPoint("TOPLEFT", 250 + (s - 1) * 52, -60)
+        b:SetSize(44, 44); b:SetPoint("TOP", frame, "TOPLEFT", 368 + (s - 2) * 52, -60)
         b:RegisterForClicks("LeftButtonUp")
         b:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
         b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetSize(38, 38); b.ico:SetPoint("CENTER")
@@ -379,32 +379,32 @@ function UI:BuildLoadout()
     end
 
     local nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    nameBox:SetSize(150, 20); nameBox:SetPoint("TOPLEFT", 250, -116); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
+    nameBox:SetSize(150, 20); nameBox:SetPoint("TOPLEFT", 259, -116); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
     frame.nameBox = nameBox
     local save = btn(frame, "Save", 60, 20); save:SetPoint("LEFT", nameBox, "RIGHT", 8, 0)
     save:SetScript("OnClick", function()
         local n = nameBox:GetText(); if n and n ~= "" then ns.Teams:SaveCurrent(n); nameBox:SetText("") end
     end)
-    local reload = btn(frame, "Reload", 70, 20); reload:SetPoint("TOPLEFT", 250, -140)
+    local reload = btn(frame, "Reload", 70, 20); reload:SetPoint("TOP", frame, "TOPLEFT", 368, -140)
     reload:SetScript("OnClick", function() ns.Teams:Reload() end)
     -- Build Counter lives at the bottom of the center column
-    local build = btn(frame, "Build Counter", 150, 22); build:SetPoint("BOTTOMLEFT", 250, 40)
+    local build = btn(frame, "Build Counter", 150, 22); build:SetPoint("BOTTOM", frame, "BOTTOMLEFT", 368, 40)
     build:SetScript("OnClick", function() UI:BuildCounter() end)
 
     -- counter / card area (below the moves picker)
     local strip = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    strip:SetPoint("TOPLEFT", 250, -290); strip:SetWidth(212); strip:SetJustifyH("LEFT"); strip:SetSpacing(2)
+    strip:SetPoint("TOP", frame, "TOPLEFT", 368, -290); strip:SetWidth(212); strip:SetJustifyH("LEFT"); strip:SetSpacing(2)
     strip:SetText("Hover a pet for its card.\nClick a pet to slot it.")
     frame.strip = strip
 
     frame.counterLoad = btn(frame, "Load these picks", 130, 20)
-    frame.counterLoad:SetPoint("BOTTOMLEFT", 250, 16); frame.counterLoad:Hide()
+    frame.counterLoad:SetPoint("BOTTOM", frame, "BOTTOMLEFT", 368, 16); frame.counterLoad:Hide()
 end
 
 -- ---- MOVES picker (center, below the buttons) -----------------------------
 function UI:BuildMoves()
     frame.movesLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    frame.movesLabel:SetPoint("TOPLEFT", 250, -166); frame.movesLabel:SetText("Moves")
+    frame.movesLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -166); frame.movesLabel:SetText("Moves")
 
     frame.moveBtns = {}
     for i = 1, 3 do
@@ -414,7 +414,7 @@ function UI:BuildMoves()
             b:SetSize(30, 30)
             -- 3 ability slots across (i), the two options stacked below (j) —
             -- matches the in-battle ability bar.
-            b:SetPoint("TOPLEFT", 250 + (i - 1) * 40, -184 - (j - 1) * 34)
+            b:SetPoint("TOP", frame, "TOPLEFT", 368 + (i - 2) * 40, -184 - (j - 1) * 34)
             b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetAllPoints()
             b.sel = b:CreateTexture(nil, "OVERLAY")
             b.sel:SetPoint("TOPLEFT", -2, 2); b.sel:SetPoint("BOTTOMRIGHT", 2, -2)
