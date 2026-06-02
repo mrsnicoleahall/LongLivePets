@@ -112,7 +112,7 @@ end
 -- ===========================================================================
 local function build()
     frame = CreateFrame("Frame", "LongLivePetsFrame", UIParent, "BackdropTemplate")
-    frame:SetSize(720, 520)
+    frame:SetSize(780, 560)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("HIGH")
     frame:SetMovable(true); frame:EnableMouse(true)
@@ -257,7 +257,7 @@ function UI:BuildLoadout()
     end)
     local reload = btn(frame, "Reload", 70, 20); reload:SetPoint("TOPLEFT", 250, -140)
     reload:SetScript("OnClick", function() ns.Teams:Reload() end)
-    local build = btn(frame, "\226\154\148 Build Counter", 130, 20); build:SetPoint("LEFT", reload, "RIGHT", 6, 0)
+    local build = btn(frame, "Build Counter", 130, 20); build:SetPoint("LEFT", reload, "RIGHT", 6, 0)
     build:SetScript("OnClick", function() UI:BuildCounter() end)
 
     -- counter / card area (below the moves picker)
@@ -332,32 +332,39 @@ end
 
 -- ---- TEAMS (right) --------------------------------------------------------
 function UI:BuildTeams()
-    panelTitle(frame, "Teams", 478)
+    panelTitle(frame, "Teams", 500)
+    frame.teamsHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    frame.teamsHint:SetPoint("TOPLEFT", 500, -58)
+    frame.teamsHint:SetText("Click a team to select. Click a group to move it there.")
+
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 478, -60); list:SetSize(226, ROW_H * TEAM_ROWS)
+    list:SetPoint("TOPLEFT", 500, -74); list:SetSize(262, ROW_H * TEAM_ROWS)
     for i = 1, TEAM_ROWS do
         local row = CreateFrame("Button", nil, list)
         row:SetHeight(ROW_H); row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H); row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
         local nm = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        nm:SetPoint("LEFT", 2, 0); nm:SetPoint("RIGHT", -78, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
-        local up = btn(row, "\225\131\157", 18, 18); up:SetPoint("RIGHT", -60, 0); row.up = up
-        local dn = btn(row, "\225\131\158", 18, 18); dn:SetPoint("RIGHT", -42, 0); row.dn = dn
-        local del = btn(row, "\195\151", 18, 18); del:SetPoint("RIGHT", -2, 0); row.del = del
-        local sh = btn(row, "\226\135\132", 18, 18); sh:SetPoint("RIGHT", -22, 0); row.sh = sh
+        nm:SetPoint("LEFT", 2, 0); nm:SetPoint("RIGHT", -62, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
+        local up  = btn(row, "^", 18, 18); up:SetPoint("RIGHT", -40, 0); row.up = up
+        local dn  = btn(row, "v", 18, 18); dn:SetPoint("RIGHT", -20, 0); row.dn = dn
+        local del = btn(row, "X", 18, 18); del:SetPoint("RIGHT", 0, 0); row.del = del
         row:Hide(); teamRows[i] = row
     end
     frame.teamsEmpty = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     frame.teamsEmpty:SetPoint("TOP", 0, -8); frame.teamsEmpty:SetText("No teams yet.\nSlot pets, name it, Save.")
 
-    local newG = btn(frame, "+ Group", 80, 20); newG:SetPoint("BOTTOMLEFT", 478, 40)
-    newG:SetScript("OnClick", function() ns.Groups:Create("New Group") end)
+    local newG = btn(frame, "+ Group", 80, 20); newG:SetPoint("BOTTOMLEFT", 500, 40)
+    newG:SetScript("OnClick", function()
+        local n = 1
+        while ns.Groups:GetByName("Group " .. n) do n = n + 1 end
+        ns.Groups:Create("Group " .. n)
+    end)
     local ie = btn(frame, "Import/Export", 110, 20); ie:SetPoint("LEFT", newG, "RIGHT", 6, 0)
     ie:SetScript("OnClick", function() UI:ShowText("Backup — copy, or paste to import", "both", ns.Serialize:BackupAll()) end)
 
     -- share row
     local sendBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    sendBox:SetSize(120, 20); sendBox:SetPoint("BOTTOMLEFT", 478, 16); sendBox:SetAutoFocus(false)
+    sendBox:SetSize(120, 20); sendBox:SetPoint("BOTTOMLEFT", 500, 16); sendBox:SetAutoFocus(false)
     frame.sendBox = sendBox
     local send = btn(frame, "Send selected", 100, 20); send:SetPoint("LEFT", sendBox, "RIGHT", 6, 0)
     send:SetScript("OnClick", function()
@@ -457,25 +464,31 @@ function UI:RefreshTeams()
         if t.group then byGroup[t.group] = byGroup[t.group] or {}; table.insert(byGroup[t.group], t)
         else table.insert(ungrouped, t) end
     end
+    -- Show EVERY group as a header (even empty), then the Ungrouped bucket.
+    -- Clicking a header moves the currently-selected team into that group.
     local disp = {}
     for _, g in ipairs(groups) do
-        if byGroup[g.id] then
-            disp[#disp + 1] = { header = true, name = g.name }
-            for _, t in ipairs(byGroup[g.id]) do disp[#disp + 1] = { team = t } end
-        end
+        disp[#disp + 1] = { header = true, name = g.name, groupID = g.id }
+        for _, t in ipairs(byGroup[g.id] or {}) do disp[#disp + 1] = { team = t } end
     end
-    if #ungrouped > 0 then
-        if next(byGroup) then disp[#disp + 1] = { header = true, name = "Ungrouped" } end
-        for _, t in ipairs(ungrouped) do disp[#disp + 1] = { team = t } end
-    end
+    -- Ungrouped header always present (so you can move teams back out), unless
+    -- there are no groups at all (then ungrouped teams just list plainly).
+    if #groups > 0 then disp[#disp + 1] = { header = true, name = "Ungrouped", groupID = nil } end
+    for _, t in ipairs(ungrouped) do disp[#disp + 1] = { team = t } end
 
-    frame.teamsEmpty:SetShown(#teams == 0)
+    frame.teamsEmpty:SetShown(#teams == 0 and #groups == 0)
     for i, row in ipairs(teamRows) do
         local d = disp[i]
-        if not d then row:Hide()
+        if not d then
+            row:Hide()
         elseif d.header then
-            row.nm:SetText("|cffffd100" .. d.name .. "|r")
-            row.up:Hide(); row.dn:Hide(); row.del:Hide(); row.sh:Hide(); row:Show()
+            local hint = state.selectedTeam and "  |cff44ff44← move here|r" or ""
+            row.nm:SetText("|cffffd100" .. d.name .. "|r" .. hint)
+            row.up:Hide(); row.dn:Hide(); row.del:Hide()
+            row:SetScript("OnClick", function()
+                if state.selectedTeam then ns.Groups:Assign(state.selectedTeam, d.groupID) end
+            end)
+            row:Show()
         else
             local t = d.team
             local label = t.name
@@ -483,12 +496,13 @@ function UI:RefreshTeams()
             if (t.wins + t.losses) > 0 then label = label .. (" |cffaaaaaa%d-%d|r"):format(t.wins, t.losses) end
             if state.selectedTeam == t.id then label = "|cffffffff[" .. label .. "]|r" end
             row.nm:SetText(label)
-            row:SetScript("OnClick", function() state.selectedTeam = t.id; ns.Teams:Load(t.id) end)
+            row:SetScript("OnClick", function()
+                state.selectedTeam = t.id; ns.Teams:Load(t.id); UI:RefreshTeams()
+            end)
             row.up:SetScript("OnClick", function() UI:MoveTeam(t, -1) end)
             row.dn:SetScript("OnClick", function() UI:MoveTeam(t, 1) end)
             row.del:SetScript("OnClick", function() ns.Teams:Delete(t.id) end)
-            row.sh:SetScript("OnClick", function() state.selectedTeam = t.id; ns:Print('Selected "' .. t.name .. '" — type a name and click Send.') end)
-            row.up:Show(); row.dn:Show(); row.del:Show(); row.sh:Show(); row:Show()
+            row.up:Show(); row.dn:Show(); row.del:Show(); row:Show()
         end
     end
 end
