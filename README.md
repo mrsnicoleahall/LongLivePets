@@ -4,11 +4,13 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.6 — one window, everything in it.** Collection, your loaded team,
-> and saved teams sit side by side in a single 3-panel window (no more popups).
-> Drag pets onto slots, drag teams to reorder, mark pets, send a team to a
-> friend, and auto-build a counter team. Covered by a 60-check automated suite.
-> The battle-script engine (tdBattlePetScript) is bundled.
+> **Status: v0.7 (alpha) — one window, everything in it.** Collection, your
+> loaded team, and saved teams sit side by side in a single 3-panel window (no
+> popups). Dropdown filters, drag/click to slot, **pick each pet's moves in the
+> window**, mark pets, reorder teams, send a team to a friend, and auto-build a
+> counter team. Covered by a 64-check automated suite. The battle-script engine
+> (tdBattlePetScript) is bundled. **Alpha:** in active testing — expect rough
+> edges and please report bugs.
 
 This is an **original, independent project**. It is written from scratch and
 contains **no code from Rematch or any other addon**. Long Live Pets uses its
