@@ -85,20 +85,25 @@ local function makeDropdown(parent, w, options, onSelect, initialText)
     end
     menu:Hide()
 
-    local y = 4
+    local y, maxW = 4, 0
     for _, opt in ipairs(options) do
         local ob = CreateFrame("Button", nil, menu)
-        ob:SetSize(w - 8, 18); ob:SetPoint("TOPLEFT", 4, -y)
+        ob:SetHeight(18)
+        ob:SetPoint("TOPLEFT", 4, -y); ob:SetPoint("RIGHT", menu, "RIGHT", -4, 0)  -- width follows menu
         ob:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
         local t = ob:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        t:SetPoint("LEFT", 4, 0); t:SetJustifyH("LEFT"); t:SetText(opt.text)
+        t:SetPoint("LEFT", 6, 0); t:SetJustifyH("LEFT"); t:SetText(opt.text)
+        local sw = t.GetStringWidth and t:GetStringWidth()
+        if type(sw) == "number" and sw > maxW then maxW = sw end
         ob:SetScript("OnClick", function()
             dd:SetText(opt.text); menu:Hide(); openMenu = nil
             onSelect(opt.value)
         end)
         y = y + 18
     end
-    menu:SetSize(w, y + 4)
+    -- size the menu to its widest option so text never overflows the border
+    menu:SetWidth(math.max(w, maxW + 24))
+    menu:SetHeight(y + 4)
 
     dd:SetScript("OnClick", function()
         if openMenu and openMenu ~= menu then openMenu:Hide() end
