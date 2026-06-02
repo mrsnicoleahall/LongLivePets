@@ -411,8 +411,10 @@ function UI:BuildMoves()
         frame.moveBtns[i] = {}
         for j = 1, 2 do
             local b = CreateFrame("Button", nil, frame)
-            b:SetSize(26, 26)
-            b:SetPoint("TOPLEFT", 250 + (j - 1) * 30, -184 - (i - 1) * 30)
+            b:SetSize(30, 30)
+            -- 3 ability slots across (i), the two options stacked below (j) —
+            -- matches the in-battle ability bar.
+            b:SetPoint("TOPLEFT", 250 + (i - 1) * 40, -184 - (j - 1) * 34)
             b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetAllPoints()
             b.sel = b:CreateTexture(nil, "OVERLAY")
             b.sel:SetPoint("TOPLEFT", -2, 2); b.sel:SetPoint("BOTTOMRIGHT", 2, -2)
