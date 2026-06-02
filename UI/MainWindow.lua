@@ -37,8 +37,13 @@ local function BuildFrame()
     end
     frame:Hide()
 
+    local icon = frame:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(28, 28)
+    icon:SetPoint("TOPLEFT", 14, -12)
+    icon:SetTexture("Interface\\AddOns\\LongLivePets\\Textures\\icon.png")
+
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -14)
+    title:SetPoint("LEFT", icon, "RIGHT", 8, 0)
     title:SetText("Long Live Pets")
 
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")

@@ -5,7 +5,7 @@
 ## Version: 0.1.0
 ## SavedVariables: LongLivePetsDB
 ## OptionalDeps: tdBattlePetScript
-## IconTexture: Interface\Icons\INV_Pet_Achievement_CaptureAWildPet
+## IconTexture: Interface\AddOns\LongLivePets\Textures\icon.png
 ## X-License: MIT
 ## Category-enUS: Pet Battles
 
