@@ -323,6 +323,10 @@ function UI:BuildCollection()
         local row = CreateFrame("Button", nil, list)
         row:SetHeight(ROW_H); row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H); row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
         row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        row:RegisterForDrag("LeftButton")
+        row:SetScript("OnDragStart", function(self)
+            if self.pet and C_PetJournal.PickupPet then C_PetJournal.PickupPet(self.pet.petID) end
+        end)
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
 
         local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(18, 18); ico:SetPoint("LEFT", 0, 0); row.ico = ico
@@ -376,18 +380,34 @@ function UI:BuildCollection()
     end
 end
 
--- ---- LOADED TEAM (center) -------------------------------------------------
+-- ---- CENTER: Selected Pet → Team → Team facts -----------------------------
 function UI:BuildLoadout()
-    panelTitle(frame, "Loaded Team", 250)
+    -- SELECTED PET: 3D model + stats
+    local selLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    selLabel:SetPoint("TOPLEFT", 256, -40); selLabel:SetText("Selected Pet")
+
+    local model = CreateFrame("PlayerModel", nil, frame)
+    model:SetSize(90, 104); model:SetPoint("TOPLEFT", 256, -58)
+    frame.petModel = model
+
+    local selInfo = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    selInfo:SetPoint("TOPLEFT", 354, -58); selInfo:SetPoint("RIGHT", frame, "TOPLEFT", 480, 0)
+    selInfo:SetJustifyH("LEFT"); selInfo:SetSpacing(2); selInfo:SetWordWrap(true)
+    selInfo:SetText("Hover or click a pet to inspect it.")
+    frame.selInfo = selInfo
+
+    -- TEAM: label + 3 slots + name/save
+    local teamLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    teamLabel:SetPoint("TOPLEFT", 256, -172); teamLabel:SetText("Team")
+
     frame.slots = {}
     for s = 1, 3 do
         local b = CreateFrame("Button", nil, frame)
-        b:SetSize(44, 44); b:SetPoint("TOP", frame, "TOPLEFT", 368 + (s - 2) * 52, -60)
+        b:SetSize(42, 42); b:SetPoint("TOP", frame, "TOPLEFT", 368 + (s - 2) * 50, -190)
         b:RegisterForClicks("LeftButtonUp")
         b:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
-        b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetSize(38, 38); b.ico:SetPoint("CENTER")
+        b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetSize(36, 36); b.ico:SetPoint("CENTER")
         b:SetScript("OnClick", function()
-            -- if a pet is on the cursor, drop it here; otherwise make this the active slot
             if not dropCursorPet(s) then state.activeSlot = s; UI:RefreshLoadout() end
         end)
         b:SetScript("OnReceiveDrag", function() dropCursorPet(s) end)
@@ -406,32 +426,26 @@ function UI:BuildLoadout()
     end
 
     local nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    nameBox:SetSize(150, 20); nameBox:SetPoint("TOPLEFT", 259, -116); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
+    nameBox:SetSize(146, 20); nameBox:SetPoint("TOPLEFT", 260, -240); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
     frame.nameBox = nameBox
     local save = btn(frame, "Save", 60, 20); save:SetPoint("LEFT", nameBox, "RIGHT", 8, 0)
     save:SetScript("OnClick", function()
         local n = nameBox:GetText(); if n and n ~= "" then ns.Teams:SaveCurrent(n); nameBox:SetText("") end
     end)
-    local reload = btn(frame, "Reload", 70, 20); reload:SetPoint("TOP", frame, "TOPLEFT", 368, -140)
-    reload:SetScript("OnClick", function() ns.Teams:Reload() end)
-    -- Build Counter lives at the bottom of the center column
-    local build = btn(frame, "Build Counter", 150, 22); build:SetPoint("BOTTOM", frame, "BOTTOMLEFT", 368, 40)
-    build:SetScript("OnClick", function() UI:BuildCounter() end)
 
-    -- counter / card area (below the moves picker)
-    local strip = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    strip:SetPoint("TOP", frame, "TOPLEFT", 368, -290); strip:SetWidth(212); strip:SetJustifyH("LEFT"); strip:SetSpacing(2)
-    strip:SetText("Hover a pet for its card.\nClick a pet to slot it.")
-    frame.strip = strip
-
-    frame.counterLoad = btn(frame, "Load these picks", 130, 20)
-    frame.counterLoad:SetPoint("BOTTOM", frame, "BOTTOMLEFT", 368, 16); frame.counterLoad:Hide()
+    -- TEAM FACTS (bottom)
+    local factsLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    factsLabel:SetPoint("TOPLEFT", 256, -358); factsLabel:SetText("Team facts")
+    local facts = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    facts:SetPoint("TOPLEFT", 256, -376); facts:SetPoint("RIGHT", frame, "TOPLEFT", 480, 0)
+    facts:SetJustifyH("LEFT"); facts:SetSpacing(2); facts:SetWordWrap(true)
+    frame.facts = facts
 end
 
 -- ---- MOVES picker (center, below the buttons) -----------------------------
 function UI:BuildMoves()
     frame.movesLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    frame.movesLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -166); frame.movesLabel:SetText("Moves")
+    frame.movesLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -266); frame.movesLabel:SetText("Moves")
 
     frame.moveBtns = {}
     for i = 1, 3 do
@@ -441,7 +455,7 @@ function UI:BuildMoves()
             b:SetSize(30, 30)
             -- 3 ability slots across (i), the two options stacked below (j) —
             -- matches the in-battle ability bar.
-            b:SetPoint("TOP", frame, "TOPLEFT", 368 + (i - 2) * 40, -184 - (j - 1) * 34)
+            b:SetPoint("TOP", frame, "TOPLEFT", 368 + (i - 2) * 40, -286 - (j - 1) * 34)
             b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetAllPoints()
             b.sel = b:CreateTexture(nil, "OVERLAY")
             b.sel:SetPoint("TOPLEFT", -2, 2); b.sel:SetPoint("BOTTOMRIGHT", 2, -2)
@@ -592,14 +606,42 @@ end
 -- ===========================================================================
 -- REFRESH
 -- ===========================================================================
+-- Update the center "Selected Pet" model + stats text.
 function UI:ShowCard(pet)
     if not frame or not pet then return end
+    -- 3D model
+    if frame.petModel then
+        local displayID = pet.petID and select(6, C_PetJournal.GetPetInfoByPetID(pet.petID))
+        if frame.petModel.ClearModel then frame.petModel:ClearModel() end
+        if displayID and frame.petModel.SetDisplayInfo then
+            pcall(function() frame.petModel:SetDisplayInfo(displayID); frame.petModel:SetCamDistanceScale(1.2) end)
+        end
+    end
+    -- stats text (reuse the pet card lines)
     local out = {}
     for _, l in ipairs(ns.PetCard:BuildLines(pet)) do
         if l.kind == "double" then out[#out + 1] = l.left .. ": " .. l.right
         elseif l.kind ~= "gap" then out[#out + 1] = l.text end
     end
-    frame.strip:SetText(table.concat(out, "\n"))
+    if frame.selInfo then frame.selInfo:SetText(table.concat(out, "\n")) end
+end
+
+-- Summarize the currently loaded team (totals + type coverage).
+function UI:RefreshFacts()
+    if not frame or not frame.facts then return end
+    local h, p, s, n, types = 0, 0, 0, 0, {}
+    for slot = 1, 3 do
+        local petID = C_PetJournal.GetPetLoadOutInfo(slot)
+        if petID then
+            local health, _, power, speed = C_PetJournal.GetPetStats(petID)
+            h = h + (health or 0); p = p + (power or 0); s = s + (speed or 0); n = n + 1
+            local pt = select(10, C_PetJournal.GetPetInfoByPetID(petID))
+            if pt and ns.Types.NAME[pt] then types[#types + 1] = ns.Types.NAME[pt] end
+        end
+    end
+    if n == 0 then frame.facts:SetText("No pets slotted.") return end
+    frame.facts:SetText(("|cffffffff%d|r HP   |cffffffff%d|r Power   |cffffffff%d|r Speed\nTypes: %s")
+        :format(h, p, s, table.concat(types, ", ")))
 end
 
 -- Render the visible window of colPets starting at state.colOffset.
@@ -649,6 +691,7 @@ function UI:RefreshLoadout()
     local id = ns.db and ns.db.loaded
     frame.nameBox:SetText(id and ns.db.teams[id] and ns.db.teams[id].name or "")
     self:RefreshMoves()
+    self:RefreshFacts()
 end
 
 -- Right column dispatches to Teams or Queue.
@@ -726,8 +769,9 @@ function UI:RenderRight()
             local label = t.name
             if t.loaded then label = "|cff44ff44>|r " .. label end
             if (t.wins + t.losses) > 0 then label = label .. (" |cffaaaaaa%d-%d|r"):format(t.wins, t.losses) end
-            if t.script then label = label .. " |cff8ec5ff(s)|r" end
-            if t.notes then label = label .. " |cffd0a0ff(n)|r" end
+            -- icon flags: scroll = script, note = notes
+            if t.script then label = label .. "  |TInterface\\Icons\\INV_Scroll_03:12:12|t" end
+            if t.notes then label = label .. " |TInterface\\Icons\\INV_Misc_Note_01:12:12|t" end
             if state.selectedTeam == t.id then label = "|cffffffff[" .. label .. "]|r" end
             row.nm:SetText(label)
             row:SetScript("OnClick", function(_, mouse)
@@ -777,27 +821,22 @@ function UI:MoveTeam(t, delta)
     if idx then ns.Teams:Reorder(t.id, t.group, idx + delta) end
 end
 
+-- Build Counter is suppressed in the UI for now; the engine still works via
+-- /llp build and prints to chat (we'll re-surface it in the UI later).
 function UI:BuildCounter()
-    local intel, npcID = ns.EnemyIntel:GetForCurrentTarget()
+    local intel = ns.EnemyIntel:GetForCurrentTarget()
     if not intel and state.selectedTeam then
         local team = ns.db.teams[state.selectedTeam]
         if team and team.targets then for n in pairs(team.targets) do intel = ns.EnemyIntel:Get(n); if intel then break end end end
     end
     if not intel then
-        frame.strip:SetText("No enemy intel yet.\nFight a tamer once and I'll learn\ntheir team, then Build Counter.")
-        frame.counterLoad:Hide(); return
+        ns:Print("No enemy intel yet — fight a tamer once, then try /llp build."); return
     end
     local res = ns.CounterBuilder:Build(intel, ns.Roster:GetOwnedPets())
-    local lines = { ("Counter for %s (covers %d/%d):"):format(intel.name or "target", res.covered, res.total) }
+    ns:Print(("Counter for %s (covers %d/%d):"):format(intel.name or "target", res.covered, res.total))
     for _, p in ipairs(res.picks) do
-        lines[#lines + 1] = "• " .. p.pet.name .. (p.reasons[1] and (" — " .. p.reasons[1]) or "")
+        ns:Print("  • " .. p.pet.name .. (p.reasons[1] and (" — " .. p.reasons[1]) or ""))
     end
-    frame.strip:SetText(table.concat(lines, "\n"))
-    frame.counterLoad:Show()
-    frame.counterLoad:SetScript("OnClick", function()
-        for s, p in ipairs(res.picks) do if s <= 3 then ns.Roster:SlotPet(p.pet.petID, s) end end
-        ns:Print("Loaded the counter picks."); UI:RefreshLoadout()
-    end)
 end
 
 function UI:Refresh()
