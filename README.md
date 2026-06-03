@@ -4,7 +4,7 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.8 (alpha) — one window with right-click menus, notes, scripts, a leveling-queue tab, and a working battlescript hand-off.** Collection scrolls; teams + groups have right-click Edit/Delete; pick each pet's moves; auto-build counters. Covered by a 67-check suite. **Alpha:** in active testing.
+> **Status: v0.9 (Alpha 2) — one window with right-click menus, notes, scripts, a leveling-queue tab, and a working battlescript hand-off.** Collection scrolls; teams + groups have right-click Edit/Delete; pick each pet's moves; auto-build counters. Open with `/llp` or the minimap button. Covered by a 67-check suite. **Alpha:** in active testing.
 
 This is an **original, independent project**. It is written from scratch and
 contains **no code from Rematch or any other addon**. Long Live Pets uses its
