@@ -51,7 +51,7 @@ acknowledgements at the bottom.
   `/llp find ability <text>`) to list pets with a matching ability name or
   description — e.g. find everything that causes *Bleed*.
 - **Counter helper** — `/llp counter <type>` tells you what beats an enemy type.
-- **Minimap button + keybinding**, a movable window, and a full `/llp` command set.
+- **Minimap button**, a movable window, and a full `/llp` command set.
 - **Battle scripts** — the bundled, MIT-licensed **tdBattlePetScript** engine
   (by DengSir) is included; link a script to a team with
   `/llp script <team> => <name>`.

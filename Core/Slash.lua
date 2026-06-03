@@ -4,9 +4,7 @@
 
 local ns = _G.LongLivePets
 
--- keybinding (see bindings.xml)
-_G.BINDING_HEADER_LONGLIVEPETS = "Long Live Pets"
-_G.BINDING_NAME_LONGLIVEPETS_TOGGLE = "Open/close the window"
+-- (Keybinding via bindings.xml was removed; open with /llp or the minimap button.)
 function LongLivePets_Toggle() ns.UI:Toggle() end
 
 local function split(rest)

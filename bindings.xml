@@ -1,5 +1,0 @@
-<Bindings>
-    <Binding name="LONGLIVEPETS_TOGGLE" category="ADDONS" header="LONGLIVEPETS">
-        LongLivePets_Toggle()
-    </Binding>
-</Bindings>
