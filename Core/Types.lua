@@ -19,6 +19,30 @@ Types.NAME = {
     [9] = "Aquatic", [10] = "Mechanical",
 }
 
+-- short labels for compact type badges in the lists
+Types.ABBR = {
+    [1] = "Hmn", [2] = "Drk", [3] = "Fly", [4] = "Und", [5] = "Crit",
+    [6] = "Mag", [7] = "Ele", [8] = "Beast", [9] = "Aq", [10] = "Mech",
+}
+
+-- distinct, readable type colors (used for the badge + name accents). Chosen to
+-- stay legible on the window's dark background.
+Types.COLOR = {
+    [1]  = { 0.90, 0.80, 0.50 },  -- Humanoid  tan
+    [2]  = { 0.85, 0.22, 0.27 },  -- Dragonkin red
+    [3]  = { 0.66, 0.82, 0.96 },  -- Flying    sky
+    [4]  = { 0.62, 0.55, 0.86 },  -- Undead    violet
+    [5]  = { 0.74, 0.74, 0.74 },  -- Critter   grey
+    [6]  = { 0.41, 0.80, 0.94 },  -- Magic     cyan
+    [7]  = { 0.96, 0.55, 0.73 },  -- Elemental pink
+    [8]  = { 0.95, 0.70, 0.40 },  -- Beast     orange
+    [9]  = { 0.27, 0.78, 0.96 },  -- Aquatic   aqua
+    [10] = { 0.78, 0.78, 0.82 },  -- Mechanical silver
+}
+
+function Types:Color(i) return self.COLOR[i] or { 0.8, 0.8, 0.8 } end
+function Types:Abbr(i) return self.ABBR[i] or "?" end
+
 -- name (lowercase) -> index
 Types.INDEX = {}
 for i, n in pairs(Types.NAME) do Types.INDEX[n:lower()] = i end
