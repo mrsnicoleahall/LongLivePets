@@ -321,7 +321,13 @@ check(#ns.Teams:List() == before + 1, "accepted team is saved")
 print("\n[19] enemy intel + auto counter-team builder")
 ns.EnemyIntel:Record(555, "Joe", { 9, 9, 6 }, {})
 check(ns.EnemyIntel:Get(555) and #ns.EnemyIntel:Get(555).types == 3, "intel recorded")
-curTarget = "Creature-0-3299-0-0-777-000ABCDEF0"; inBattle = true
+-- Real flow: we target the tamer OUT of battle (so Targets caches the npcID/
+-- name), THEN the battle opens. Mid-battle the enemy GUID would be secret, so
+-- capture must rely on that pre-battle cache rather than reading the target.
+curTarget = "Creature-0-3299-0-0-777-000ABCDEF0"
+fire("PLAYER_TARGET_CHANGED")        -- caches npcID 777 while out of battle
+check(ns.Targets._lastNpcID == 777, "tamer npcID cached before the battle")
+inBattle = true
 fire("PET_BATTLE_OPENING_START"); fire("PET_BATTLE_OPENING_DONE"); inBattle = false
 local intel = ns.EnemyIntel:Get(777)
 check(intel and intel.types[1] == 9, "enemy comp captured from a battle")

@@ -10,10 +10,19 @@ ns.Targets = Targets
 
 local function db() return ns.db end
 
+local function inPetBattle()
+    return C_PetBattles and C_PetBattles.IsInBattle and C_PetBattles.IsInBattle()
+end
+
 -- Pull the npcID out of a creature GUID like "Creature-0-..-<npcID>-<spawn>".
+-- Defensive: on Midnight a unit's GUID can be a protected "secret" value
+-- (e.g. an enemy during a pet battle). Running strsplit on a secret throws and
+-- TAINTS our execution, which then blocks secure addons like tdBattlePetScript.
+-- pcall keeps that from ever escaping as an error.
 function Targets:NpcIDFromGUID(guid)
     if not guid then return nil end
-    local kind, _, _, _, _, npcID = strsplit("-", guid)
+    local ok, kind, _, _, _, _, npcID = pcall(strsplit, "-", guid)
+    if not ok then return nil end
     if (kind == "Creature" or kind == "Vehicle" or kind == "GameObject") and npcID then
         return tonumber(npcID)
     end
@@ -21,8 +30,15 @@ function Targets:NpcIDFromGUID(guid)
 end
 
 function Targets:CurrentNpcID()
+    -- Never read the live target while a pet battle is up: the enemy's GUID is
+    -- a secret value on Midnight and touching it taints us. Use the id we
+    -- cached from the last time we targeted them out of battle.
+    if inPetBattle() then return self._lastNpcID end
     if not UnitExists("target") or UnitIsPlayer("target") then return nil end
-    return self:NpcIDFromGUID(UnitGUID("target"))
+    local id = self:NpcIDFromGUID(UnitGUID("target"))
+    self._lastNpcID = id
+    self._lastName  = id and UnitName and UnitName("target") or nil
+    return id
 end
 
 -- Bind a team to the current target (or to an explicit npcID).
@@ -61,10 +77,12 @@ end
 
 -- Auto-load on target change (opt-in; never during combat or a pet battle).
 ns:On("PLAYER_TARGET_CHANGED", function()
+    if inPetBattle() then return end
+    -- always refresh the pre-battle cache (npcID + name) so we have something
+    -- safe to use once the enemy's data becomes secret in battle.
+    local npcID = ns.Targets:CurrentNpcID()
     if not ns.db or not ns.db.settings.autoLoadOnTarget then return end
     if InCombatLockdown() then return end
-    if C_PetBattles and C_PetBattles.IsInBattle and C_PetBattles.IsInBattle() then return end
-    local npcID = ns.Targets:CurrentNpcID()
     local teamID = npcID and ns.Targets:GetTeamForNpc(npcID)
     if teamID and teamID ~= ns.db.loaded then
         ns.Teams:Load(teamID)

@@ -119,7 +119,11 @@ function Integration:OnTeamLoaded(team)
     self:Arm(team)
 end
 
--- Re-arm when a battle opens (tdBattlePetScript clears its script at battle end).
-ns:On("PET_BATTLE_OPENING_DONE", function()
+-- Re-arm when a battle opens (tdBattlePetScript clears its script at battle
+-- end). We arm on both OPENING_START and OPENING_DONE so the script is ready as
+-- early as possible regardless of which fires first on this client.
+local function reArm()
     if ns._armedTeamID then ns.Integration:Arm(ns._armedTeamID, true) end
-end)
+end
+ns:On("PET_BATTLE_OPENING_START", reArm)
+ns:On("PET_BATTLE_OPENING_DONE", reArm)
