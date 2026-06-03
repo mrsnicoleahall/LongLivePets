@@ -38,6 +38,15 @@ please open an issue and it will be addressed immediately.
   Bundled libraries inside tdBattlePetScript (Ace3, LibStub, tdGUI, etc.) retain
   their own respective licenses.
 
+- **LibStub** — the standard tiny version-registry shim for WoW libraries.
+  Public domain. Bundled in `Libs/LibStub/`.
+
+- **LibPetBreedInfo-1.0** — community library that determines a battle pet's
+  breed (e.g. B/B, P/S) from its stats. A LibStub-embeddable library distributed
+  for addon authors to bundle; included in `Libs/LibPetBreedInfo-1.0/` and used
+  to show breeds in tooltips and pet rows. Credit to its original author(s); if
+  the author wishes any change to its inclusion, please open an issue.
+
 ## Trademarks / acknowledgements
 
 World of Warcraft and the `C_PetJournal` API are the property of Blizzard

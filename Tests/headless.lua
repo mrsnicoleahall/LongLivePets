@@ -145,7 +145,7 @@ C_PetJournal = {
 -- ---- load addon in TOC order ----------------------------------------------
 local ns = {}
 local files = {
-  "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Markers.lua",
+  "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Breed.lua", "Core/Markers.lua",
   "Core/Loadout.lua", "Core/Roster.lua", "Core/Abilities.lua", "Core/Groups.lua", "Core/Queue.lua",
   "Core/Teams.lua", "Core/Targets.lua", "Core/Serialize.lua", "Core/Battle.lua",
   "Core/EnemyIntel.lua", "Core/CounterBuilder.lua", "Core/Comm.lua", "Core/MigrateRematch.lua",

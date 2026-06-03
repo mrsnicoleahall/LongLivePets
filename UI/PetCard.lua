@@ -25,6 +25,8 @@ function PetCard:BuildLines(pet)
     local rarityName = RARITY_NAME[pet.rarity or 0]
     local sub = ("Level %d  %s"):format(pet.level or 1, typeName)
     if rarityName then sub = sub .. "  (" .. rarityName .. ")" end
+    local breed = pet.breed or (ns.Breed and ns.Breed:Get(pet.petID))
+    if breed then sub = sub .. "  |cff8ec5ff" .. breed .. "|r" end
     lines[#lines + 1] = { kind = "line", text = sub, color = { .8, .8, .8 } }
 
     if C_PetJournal and C_PetJournal.GetPetStats then

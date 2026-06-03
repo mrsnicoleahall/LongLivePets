@@ -117,6 +117,50 @@ local function makeDropdown(parent, w, options, onSelect, initialText)
     return dd
 end
 
+-- rarity colors (1 poor .. 5 epic)
+local RARITY_COLOR = {
+    [1] = { .62, .62, .62 }, [2] = { 1, 1, 1 }, [3] = { .12, 1, 0 },
+    [4] = { 0, .44, .87 }, [5] = { .64, .21, .93 },
+}
+
+-- Add rich decorations (rarity border, level badge, type icon, breed) to a row
+-- that already has row.ico (texture) and row.nm (fontstring).
+local function decoratePetRow(row)
+    row.border = row:CreateTexture(nil, "BACKGROUND")
+    row.border:SetPoint("TOPLEFT", row.ico, "TOPLEFT", -1, 1)
+    row.border:SetPoint("BOTTOMRIGHT", row.ico, "BOTTOMRIGHT", 1, -1)
+    row.border:Hide()
+    row.lvl = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.lvl:SetPoint("BOTTOMRIGHT", row.ico, "BOTTOMRIGHT", 2, -1)
+    row.typeIcon = row:CreateTexture(nil, "OVERLAY")
+    row.typeIcon:SetSize(18, 18); row.typeIcon:SetPoint("RIGHT", row, "RIGHT", -40, 0); row.typeIcon:Hide()
+    row.breed = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.breed:SetPoint("RIGHT", row, "RIGHT", -2, 0); row.breed:SetWidth(34); row.breed:SetJustifyH("RIGHT")
+end
+
+-- render a pet into a decorated row.
+local function renderPetRow(row, pet)
+    local rc = RARITY_COLOR[pet.rarity or 2] or RARITY_COLOR[2]
+    if pet.icon then row.ico:SetTexture(pet.icon) end; row.ico:Show()
+    row.border:SetColorTexture(rc[1], rc[2], rc[3], 1); row.border:Show()
+    row.lvl:SetText(pet.level and tostring(pet.level) or ""); row.lvl:Show()
+    row.nm:SetTextColor(rc[1], rc[2], rc[3])
+    local suffix = pet.petType and ns.Types.NAME[pet.petType]
+    if suffix then row.typeIcon:SetTexture("Interface\\PetBattles\\PetIcon-" .. suffix); row.typeIcon:Show()
+    else row.typeIcon:Hide() end
+    local breed = pet.breed or (ns.Breed and ns.Breed:Get(pet.petID))
+    row.breed:SetText(breed or "")
+end
+
+-- hide the rich decorations (for header/team rows).
+local function clearPetRow(row)
+    if row.border then row.border:Hide() end
+    if row.lvl then row.lvl:SetText("") end
+    if row.typeIcon then row.typeIcon:Hide() end
+    if row.breed then row.breed:SetText("") end
+    row.nm:SetTextColor(1, 1, 1)
+end
+
 -- ===========================================================================
 -- BUILD
 -- ===========================================================================
@@ -329,10 +373,11 @@ function UI:BuildCollection()
         end)
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
 
-        local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(18, 18); ico:SetPoint("LEFT", 0, 0); row.ico = ico
-        local mk = row:CreateTexture(nil, "OVERLAY"); mk:SetSize(14, 14); mk:SetPoint("LEFT", ico, "RIGHT", 2, 0); row.mk = mk
+        local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(20, 20); ico:SetPoint("LEFT", 2, 0); row.ico = ico
+        local mk = row:CreateTexture(nil, "OVERLAY"); mk:SetSize(11, 11); mk:SetPoint("TOPLEFT", ico, "TOPLEFT", -2, 2); row.mk = mk
         local nm = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        nm:SetPoint("LEFT", mk, "RIGHT", 3, 0); nm:SetPoint("RIGHT", 0, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
+        nm:SetPoint("LEFT", ico, "RIGHT", 6, 0); nm:SetPoint("RIGHT", row, "RIGHT", -62, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
+        decoratePetRow(row)
 
         row:SetScript("OnClick", function(self, mouse)
             if not self.pet then return end
@@ -535,6 +580,7 @@ function UI:BuildTeams()
         local up  = btn(row, "^", 18, 18); up:SetPoint("RIGHT", -40, 0); row.up = up
         local dn  = btn(row, "v", 18, 18); dn:SetPoint("RIGHT", -20, 0); row.dn = dn
         local del = btn(row, "X", 18, 18); del:SetPoint("RIGHT", 0, 0); row.del = del
+        decoratePetRow(row)
         row:Hide(); teamRows[i] = row
     end
     frame.teamsEmpty = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -652,9 +698,9 @@ function UI:RenderCollection()
         local p = colPets[i + off]
         if p then
             row.pet = p
-            if p.icon then row.ico:SetTexture(p.icon) end
+            renderPetRow(row, p)
             row.mk:SetTexture(p.marker and ns.Markers:Texture(p.marker) or nil)
-            row.nm:SetText(("%s |cffaaaaaaL%d %s|r"):format(p.name, p.level, ns.Types.NAME[p.petType] or "?"))
+            row.nm:SetText(p.name)
             row:Show()
         else row.pet = nil; row:Hide() end
     end
@@ -744,7 +790,7 @@ function UI:RenderRight()
         if not d then
             row:Hide()
         elseif d.header then
-            row.ico:Hide()
+            row.ico:Hide(); clearPetRow(row)
             local hint = state.selectedTeam and "  |cff44ff44← move here|r" or ""
             row.nm:SetText("|cffffd100" .. d.name .. "|r" .. hint)
             row.up:Hide(); row.dn:Hide()
@@ -765,7 +811,7 @@ function UI:RenderRight()
             row:Show()
         elseif d.team then
             local t = d.team
-            row.ico:Hide()
+            row.ico:Hide(); clearPetRow(row)
             local label = t.name
             if t.loaded then label = "|cff44ff44>|r " .. label end
             if (t.wins + t.losses) > 0 then label = label .. (" |cffaaaaaa%d-%d|r"):format(t.wins, t.losses) end
@@ -795,12 +841,18 @@ function UI:RenderRight()
             row.up:Show(); row.dn:Show(); row.del:Show(); row:Show()
         elseif d.queue then
             local petID = d.queue
-            local _, _, level, _, _, _, _, name, icon = C_PetJournal.GetPetInfoByPetID(petID)
-            row.ico:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark"); row.ico:Show()
-            row.nm:SetText(("%d. %s |cffaaaaaaL%s|r"):format(d.index, name or "pet", tostring(level or "?")))
-            row.up:Hide(); row.dn:Hide()
-            row.del:SetScript("OnClick", function() ns.Queue:Remove(petID) end); row.del:Show()
-            row:SetScript("OnClick", nil)
+            local speciesID, customName, level, _, _, _, _, name, icon, petType = C_PetJournal.GetPetInfoByPetID(petID)
+            local rarity = select(5, C_PetJournal.GetPetStats(petID))
+            local pet = { petID = petID, speciesID = speciesID, name = customName or name or "pet",
+                          level = level, petType = petType, icon = icon, rarity = rarity }
+            renderPetRow(row, pet)
+            row.nm:SetText(pet.name)
+            row.up:Hide(); row.dn:Hide(); row.del:Hide()
+            row:SetScript("OnClick", function(_, mouse)
+                if mouse == "RightButton" then
+                    UI:ShowMenu({ { text = "Remove from queue", fn = function() ns.Queue:Remove(petID) end } })
+                end
+            end)
             row:Show()
         end
     end
