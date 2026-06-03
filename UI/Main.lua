@@ -17,8 +17,8 @@ local UI = {}
 ns.UI = UI
 ns.PetBrowser = UI
 
-local COL_ROWS, TEAM_ROWS = 15, 15
-local ROW_H = 27
+local COL_ROWS, TEAM_ROWS = 12, 12
+local ROW_H = 34
 
 local frame
 local colRows, teamRows = {}, {}
@@ -133,13 +133,9 @@ local function decoratePetRow(row)
     row.lvl = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.lvl:SetPoint("BOTTOMRIGHT", row.ico, "BOTTOMRIGHT", 2, -1)
     row.typeIcon = row:CreateTexture(nil, "OVERLAY")
-    row.typeIcon:SetSize(22, 22); row.typeIcon:SetPoint("RIGHT", row, "RIGHT", -42, 0); row.typeIcon:Hide()
-    -- faint light disc behind the type icon so it reads on the dark panel
-    row.typeBg = row:CreateTexture(nil, "ARTWORK")
-    row.typeBg:SetSize(22, 22); row.typeBg:SetPoint("CENTER", row.typeIcon, "CENTER")
-    row.typeBg:SetColorTexture(1, 1, 1, 0.12); row.typeBg:Hide()
+    row.typeIcon:SetSize(26, 26); row.typeIcon:SetPoint("RIGHT", row, "RIGHT", -46, 0); row.typeIcon:Hide()
     row.breed = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    row.breed:SetPoint("RIGHT", row, "RIGHT", -4, 0); row.breed:SetWidth(36); row.breed:SetJustifyH("RIGHT")
+    row.breed:SetPoint("RIGHT", row, "RIGHT", -6, 0); row.breed:SetWidth(34); row.breed:SetJustifyH("RIGHT")
 end
 
 -- render a pet into a decorated row.
@@ -151,9 +147,12 @@ local function renderPetRow(row, pet)
     row.nm:SetTextColor(rc[1], rc[2], rc[3])
     local suffix = pet.petType and ns.Types.NAME[pet.petType]
     if suffix then
+        -- the PetIcon texture is a circular badge centered in a square sheet;
+        -- crop the transparent padding so it reads as a clean icon
         row.typeIcon:SetTexture("Interface\\PetBattles\\PetIcon-" .. suffix)
-        row.typeIcon:Show(); if row.typeBg then row.typeBg:Show() end
-    else row.typeIcon:Hide(); if row.typeBg then row.typeBg:Hide() end end
+        row.typeIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        row.typeIcon:Show()
+    else row.typeIcon:Hide() end
     local breed = pet.breed or (ns.Breed and ns.Breed:Get(pet.petID))
     row.breed:SetText(breed or "")
 end
@@ -163,7 +162,6 @@ local function clearPetRow(row)
     if row.border then row.border:Hide() end
     if row.lvl then row.lvl:SetText("") end
     if row.typeIcon then row.typeIcon:Hide() end
-    if row.typeBg then row.typeBg:Hide() end
     if row.breed then row.breed:SetText("") end
     row.nm:SetTextColor(1, 1, 1)
 end
@@ -380,10 +378,10 @@ function UI:BuildCollection()
         end)
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
 
-        local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(24, 24); ico:SetPoint("LEFT", 2, 0); row.ico = ico
-        local mk = row:CreateTexture(nil, "OVERLAY"); mk:SetSize(12, 12); mk:SetPoint("TOPLEFT", ico, "TOPLEFT", -2, 2); row.mk = mk
+        local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(30, 30); ico:SetPoint("LEFT", 2, 0); row.ico = ico
+        local mk = row:CreateTexture(nil, "OVERLAY"); mk:SetSize(13, 13); mk:SetPoint("TOPLEFT", ico, "TOPLEFT", -2, 2); row.mk = mk
         local nm = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        nm:SetPoint("LEFT", ico, "RIGHT", 7, 0); nm:SetPoint("RIGHT", row, "RIGHT", -66, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
+        nm:SetPoint("LEFT", ico, "RIGHT", 8, 0); nm:SetPoint("RIGHT", row, "RIGHT", -74, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
         decoratePetRow(row)
 
         row:SetScript("OnClick", function(self, mouse)
@@ -436,26 +434,26 @@ end
 function UI:BuildLoadout()
     -- SELECTED PET: 3D model + stats
     local selLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    selLabel:SetPoint("TOPLEFT", 256, -40); selLabel:SetText("Selected Pet")
+    selLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -38); selLabel:SetText("Selected Pet")
 
     local model = CreateFrame("PlayerModel", nil, frame)
-    model:SetSize(128, 140); model:SetPoint("TOPLEFT", 256, -56)
+    model:SetSize(120, 132); model:SetPoint("TOP", frame, "TOPLEFT", 368, -54)
     frame.petModel = model
 
-    local selInfo = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    selInfo:SetPoint("TOPLEFT", 390, -58); selInfo:SetPoint("RIGHT", frame, "TOPLEFT", 482, 0)
-    selInfo:SetJustifyH("LEFT"); selInfo:SetSpacing(2); selInfo:SetWordWrap(true)
+    local selInfo = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    selInfo:SetPoint("TOP", frame, "TOPLEFT", 368, -190); selInfo:SetWidth(224)
+    selInfo:SetJustifyH("CENTER"); selInfo:SetSpacing(2)
     selInfo:SetText("Hover or click a pet to inspect it.")
     frame.selInfo = selInfo
 
     -- TEAM: label + 3 slots + name/save
     local teamLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    teamLabel:SetPoint("TOPLEFT", 256, -206); teamLabel:SetText("Team")
+    teamLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -228); teamLabel:SetText("Team")
 
     frame.slots = {}
     for s = 1, 3 do
         local b = CreateFrame("Button", nil, frame)
-        b:SetSize(42, 42); b:SetPoint("TOP", frame, "TOPLEFT", 368 + (s - 2) * 50, -224)
+        b:SetSize(42, 42); b:SetPoint("TOP", frame, "TOPLEFT", 368 + (s - 2) * 50, -246)
         b:RegisterForClicks("LeftButtonUp")
         b:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
         b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetSize(36, 36); b.ico:SetPoint("CENTER")
@@ -478,7 +476,7 @@ function UI:BuildLoadout()
     end
 
     local nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    nameBox:SetSize(146, 20); nameBox:SetPoint("TOPLEFT", 260, -274); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
+    nameBox:SetSize(146, 20); nameBox:SetPoint("TOPLEFT", 261, -298); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
     frame.nameBox = nameBox
     local save = btn(frame, "Save", 60, 20); save:SetPoint("LEFT", nameBox, "RIGHT", 8, 0)
     save:SetScript("OnClick", function()
@@ -487,17 +485,17 @@ function UI:BuildLoadout()
 
     -- TEAM FACTS (bottom)
     local factsLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    factsLabel:SetPoint("TOPLEFT", 256, -398); factsLabel:SetText("Team facts")
-    local facts = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    facts:SetPoint("TOPLEFT", 256, -416); facts:SetPoint("RIGHT", frame, "TOPLEFT", 482, 0)
-    facts:SetJustifyH("LEFT"); facts:SetSpacing(2); facts:SetWordWrap(true)
+    factsLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -410); factsLabel:SetText("Team facts")
+    local facts = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    facts:SetPoint("TOP", frame, "TOPLEFT", 368, -428); facts:SetWidth(224)
+    facts:SetJustifyH("CENTER"); facts:SetSpacing(2)
     frame.facts = facts
 end
 
 -- ---- MOVES picker (center, below the buttons) -----------------------------
 function UI:BuildMoves()
     frame.movesLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    frame.movesLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -300); frame.movesLabel:SetText("Moves")
+    frame.movesLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -326); frame.movesLabel:SetText("Moves")
 
     frame.moveBtns = {}
     for i = 1, 3 do
@@ -507,7 +505,7 @@ function UI:BuildMoves()
             b:SetSize(30, 30)
             -- 3 ability slots across (i), the two options stacked below (j) —
             -- matches the in-battle ability bar.
-            b:SetPoint("TOP", frame, "TOPLEFT", 368 + (i - 2) * 40, -320 - (j - 1) * 34)
+            b:SetPoint("TOP", frame, "TOPLEFT", 368 + (i - 2) * 40, -342 - (j - 1) * 32)
             b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetAllPoints()
             b.sel = b:CreateTexture(nil, "OVERLAY")
             b.sel:SetPoint("TOPLEFT", -2, 2); b.sel:SetPoint("BOTTOMRIGHT", 2, -2)
@@ -675,13 +673,21 @@ function UI:ShowCard(pet)
             end)
         end
     end
-    -- stats text (reuse the pet card lines)
-    local out = {}
-    for _, l in ipairs(ns.PetCard:BuildLines(pet)) do
-        if l.kind == "double" then out[#out + 1] = l.left .. ": " .. l.right
-        elseif l.kind ~= "gap" then out[#out + 1] = l.text end
+    -- compact, centered stats for the Selected Pet panel
+    if not frame.selInfo then return end
+    local RAR = { [1] = "Poor", [2] = "Common", [3] = "Uncommon", [4] = "Rare", [5] = "Epic" }
+    local typeName = pet.petType and ns.Types.NAME[pet.petType] or "?"
+    local breed = pet.breed or (ns.Breed and ns.Breed:Get(pet.petID))
+    local line1 = "|cffffd100" .. (pet.name or "Pet") .. "|r"
+    local line2 = ("Lvl %d   %s%s%s"):format(pet.level or 1, typeName,
+        RAR[pet.rarity or 0] and ("   " .. RAR[pet.rarity or 0]) or "",
+        breed and ("   |cff8ec5ff" .. breed .. "|r") or "")
+    local line3
+    if C_PetJournal.GetPetStats and pet.petID then
+        local hh, _, pp, ss = C_PetJournal.GetPetStats(pet.petID)
+        if hh then line3 = ("%d HP    %d Pow    %d Spd"):format(hh, pp, ss) end
     end
-    if frame.selInfo then frame.selInfo:SetText(table.concat(out, "\n")) end
+    frame.selInfo:SetText(line1 .. "\n" .. line2 .. (line3 and ("\n" .. line3) or ""))
 end
 
 -- Summarize the currently loaded team (totals + type coverage).
