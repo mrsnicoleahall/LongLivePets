@@ -96,6 +96,10 @@ local mockPets = {
   ["LVL-2"] = { speciesID = 500, level = 8,  name = "Lvl2",  petType = 8,  rarity = 3 },
 }
 local petOrder = { "PET-A", "PET-B", "PET-C", "LVL-1", "LVL-2" }
+-- realistic GUIDs for the Rematch-migration test (not in petOrder, so they
+-- don't change owned counts; only resolvable via GetPetInfoByPetID)
+mockPets["BattlePet-0-TEST1"] = { speciesID = 777, level = 25, name = "Mig1", petType = 9, rarity = 4 }
+mockPets["BattlePet-0-TEST2"] = { speciesID = 888, level = 25, name = "Mig2", petType = 6, rarity = 4 }
 
 local slotPets
 local function setSlots(t) slotPets = t end
@@ -144,7 +148,7 @@ local files = {
   "Core/Init.lua", "Core/Database.lua", "Core/Types.lua", "Core/Markers.lua",
   "Core/Loadout.lua", "Core/Roster.lua", "Core/Abilities.lua", "Core/Groups.lua", "Core/Queue.lua",
   "Core/Teams.lua", "Core/Targets.lua", "Core/Serialize.lua", "Core/Battle.lua",
-  "Core/EnemyIntel.lua", "Core/CounterBuilder.lua", "Core/Comm.lua",
+  "Core/EnemyIntel.lua", "Core/CounterBuilder.lua", "Core/Comm.lua", "Core/MigrateRematch.lua",
   "UI/PetCard.lua", "UI/Main.lua", "UI/Minimap.lua",
   "Integration/tdBattlePetScript.lua", "Core/Slash.lua",
 }
@@ -370,6 +374,24 @@ print("\n[22] combined name + ability search (single box)")
 check(#ns.Roster:Filter({ text = "alpha" }) == 1, "combined search matches a pet name")
 check(#ns.Roster:Filter({ text = "bite" }) == 2, "combined search matches ability text too")
 check(#ns.Roster:Filter({ text = "zzzznope" }) == 0, "combined search rejects misses")
+
+print("\n[23] Rematch migration")
+wipe(ns.db.teams); wipe(ns.db.groups); ns.db.nextID = 1; ns.db.nextGroupID = 1
+_G.Rematch5SavedGroups = { ["group:1"] = { name = "Dungeons", teams = { "team:1" } } }
+_G.Rematch5SavedTeams = {
+  ["team:1"] = { name = "Imp A", pets = { "BattlePet-0-TEST1", "BattlePet-0-TEST2", 0 }, groupID = "group:1", notes = "hi", targets = { 555 } },
+  ["team:2"] = { name = "Imp B", pets = { "BattlePet-0-TEST1", "random:9", "random:9" } },
+}
+ns.MigrateRematch:Run()
+local _, ta = ns.Teams:GetByName("Imp A")
+check(ns.Teams:GetByName("Imp B") ~= nil, "both Rematch teams imported")
+check(ns.Groups:GetByName("Dungeons") ~= nil, "Rematch group created")
+check(ta and ta.pets[1] and ta.pets[1].petID == "BattlePet-0-TEST1" and ta.pets[1].speciesID == 777, "pet GUID + species migrated")
+check(ta and ta.pets[3] == nil, "empty/0 slot left empty")
+check(ta and ta.notes == "hi", "notes migrated")
+check(ta and ta.group == ns.Groups:Resolve("Dungeons"), "team assigned to its migrated group")
+check(ta and ta.targets and ta.targets[555], "target npc migrated")
+_G.Rematch5SavedTeams = nil; _G.Rematch5SavedGroups = nil
 
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

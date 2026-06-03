@@ -37,6 +37,7 @@ local function help()
         "/llp build                 auto-build a counter team for your target",
         "/llp send <team> => <player>   send a team to another LLP user",
         "/llp accept                save a team someone sent you",
+        "/llp importrematch         import teams + groups from Rematch",
         "/llp minimap               toggle the minimap button",
         "/llp list                  (right-click a pet in the window to mark it)",
     }
@@ -180,6 +181,8 @@ handlers.send = function(rest)
 end
 
 handlers.accept = function() ns.Comm:Accept() end
+
+handlers.importrematch = function() ns.MigrateRematch:Run() end
 
 handlers.build = function() ns.UI:Show(); ns.UI:BuildCounter() end
 
