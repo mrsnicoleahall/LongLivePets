@@ -147,10 +147,8 @@ local function renderPetRow(row, pet)
     row.nm:SetTextColor(rc[1], rc[2], rc[3])
     local suffix = pet.petType and ns.Types.NAME[pet.petType]
     if suffix then
-        -- the PetIcon texture is a circular badge centered in a square sheet;
-        -- crop the transparent padding so it reads as a clean icon
         row.typeIcon:SetTexture("Interface\\PetBattles\\PetIcon-" .. suffix)
-        row.typeIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        row.typeIcon:SetTexCoord(0, 1, 0, 1)   -- full texture, square frame: no distortion
         row.typeIcon:Show()
     else row.typeIcon:Hide() end
     local breed = pet.breed or (ns.Breed and ns.Breed:Get(pet.petID))
