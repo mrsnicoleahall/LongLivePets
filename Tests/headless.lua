@@ -418,5 +418,24 @@ ns.MigrateRematch:LinkScripts()
 check(ta and ta.script == "Imp A", "linkscripts links existing team by name (no Rematch data needed)")
 _G.TD_DB_BATTLEPETSCRIPT_GLOBAL = nil
 
+print("\n[24] wow-petguide strategy import (team + script)")
+local strat = "Crypt Fiend:4JBV:1210NA:2213MQ:2227EO:N:Some notes here.\\n\\n"
+  .. "-----BEGIN PET BATTLE SCRIPT-----\\n"
+  .. "change(next) [self.hp<250]\\n"
+  .. "change(Tolai Hare Pup:730) [self(Tolai Hare Pup:730).hp>500]\\n"
+  .. "change(Emperor Crab:746)\\n"
+  .. "change(Rabid Nut Varmint 5000:472)\\n"
+  .. "ability(Snap:356)\\n"
+  .. "-----END PET BATTLE SCRIPT-----"
+local sn, serr, sinfo = ns.Serialize:Import(strat)
+check(sn == 1, "strategy string imports as one team")
+check(sinfo and sinfo.code and sinfo.code:find("Snap"), "tdBattlePetScript code extracted")
+local _, ct = ns.Teams:GetByName("Crypt Fiend")
+check(ct and ct.script == "Crypt Fiend", "strategy team links its script by name")
+check(ct and ct.pets[1] and ct.pets[1].speciesID == 730, "1st team pet read from script (730)")
+check(ct and ct.pets[2] and ct.pets[2].speciesID == 746 and ct.pets[3] and ct.pets[3].speciesID == 472,
+  "all three team pets read from script (746,472)")
+check(ct and ct.scriptCode and ct.scriptCode:find("change%(next%)"), "raw script code stored on the team")
+
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

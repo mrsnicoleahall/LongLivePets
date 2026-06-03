@@ -881,8 +881,13 @@ function UI:BuildImportExport()
     p.imp = btn(p, "Import", 90, 22); p.imp:SetPoint("BOTTOMLEFT", 14, 12)
     p.imp:SetScript("OnClick", function()
         local v = p.edit and p.edit:GetText() or ""
-        local n, err = ns.Serialize:Import(v)
+        local n, err, info = ns.Serialize:Import(v)
         ns:Print(n and ("Imported " .. n .. " team(s).") or err); p:Hide()
+        if info and info.code then
+            ns:Print(('Created team "%s" with %d pet(s) + script.'):format(info.name, info.pets or 0))
+            UI:ShowText(('Paste this into tdBattlePetScript and name it "%s" — then loading the team runs it'):format(info.name),
+                "export", "-----BEGIN PET BATTLE SCRIPT-----\n" .. info.code .. "\n-----END PET BATTLE SCRIPT-----")
+        end
     end)
     local cls = CreateFrame("Button", nil, p, "UIPanelCloseButton"); cls:SetPoint("TOPRIGHT", -4, -4)
     p:Hide()

@@ -138,7 +138,47 @@ function Serialize:BackupAll()
     return "LLPBK1:" .. self.encode64(table.concat(lines, "\n"))
 end
 
+-- Import a wow-petguide / Rematch "strategy" string: a team header, human
+-- notes, and a tdBattlePetScript block. We can't decode Rematch's packed pet
+-- codes, but the SCRIPT names the team's own pets by speciesID — e.g.
+-- change(Emperor Crab:746) / self(Tolai Hare Pup:730) — so we read the team's
+-- pets straight from there. Returns 1, nil, { name=, code= } on success.
+function Serialize:ImportStrategy(str)
+    local norm = tostring(str or ""):gsub("\\n", "\n")          -- literal \n -> newline
+    local name = (norm:match("^%s*([^:\n]+)") or "Imported team"):gsub("^%s+", ""):gsub("%s+$", "")
+    local code = norm:match("BEGIN PET BATTLE SCRIPT[%-%s]*(.-)[%-%s]*END PET BATTLE SCRIPT")
+    if code then code = code:gsub("^%s+", ""):gsub("%s+$", "") end
+
+    -- team pets = the species the script CONTROLS (change()/self()), not enemies
+    local pets, seen, order = {}, {}, {}
+    if code then
+        local function collect(pat)
+            for sid in code:gmatch(pat) do
+                sid = tonumber(sid)
+                if sid and not seen[sid] then seen[sid] = true; order[#order + 1] = sid end
+            end
+        end
+        collect("[Cc]hange%([^:%(%)]+:(%d+)%)")
+        collect("self%([^:%(%)]+:(%d+)%)")
+    end
+    for i = 1, math.min(3, #order) do pets[i] = { speciesID = order[i] } end
+
+    -- best-effort notes: the prose between the header flags and the script
+    local notes = norm:match(":[YNyn]:(.-)%-+BEGIN PET BATTLE SCRIPT") or norm:match(":[YNyn]:(.+)$")
+    if notes then
+        notes = notes:gsub("%[/?url[^%]]*%]", ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if #notes > 400 then notes = notes:sub(1, 400) .. "…" end
+        if notes == "" then notes = nil end
+    end
+
+    local id = ns.Teams:CreateImported({ name = name, pets = pets, notes = notes, script = code and name or nil })
+    if not id then return nil, "Could not create that team." end
+    if code then ns.db.teams[id].scriptCode = code end
+    return 1, nil, { name = name, code = code, pets = #pets }
+end
+
 -- Returns number of teams imported, or nil + error message.
+-- Third return (optional) carries strategy-script info for the caller to show.
 function Serialize:Import(str)
     str = tostring(str or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local payload
@@ -146,6 +186,8 @@ function Serialize:Import(str)
         payload = self.decode64(str:sub(6))
     elseif str:match("^LLPBK1:") then
         payload = self.decode64(str:sub(8))
+    elseif str:find("PET BATTLE SCRIPT", 1, true) then
+        return self:ImportStrategy(str)
     else
         return nil, "That isn't a Long Live Pets string. Use the Export button (or /llp export <team>) to make one. "
             .. "For Rematch teams use /llp importrematch; for a tdBattlePetScript script, paste it into tdBattlePetScript, then link it to a team via right-click → Set / edit script."
