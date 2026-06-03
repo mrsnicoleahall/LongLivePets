@@ -248,7 +248,6 @@ local function build()
 
     UI:BuildCollection()
     UI:BuildLoadout()
-    UI:BuildMoves()
     UI:BuildTeams()
     UI:BuildPetCare()
     UI:BuildImportExport()
@@ -531,140 +530,206 @@ local function centerDivider(y)
     d:SetColorTexture(0.5, 0.42, 0.2, 0.7)
 end
 
--- ---- CENTER: Selected Pet → Team → Team facts -----------------------------
-function UI:BuildLoadout()
-    -- SELECTED PET: 3D model + stats
-    local selLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    selLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -38); selLabel:SetText("Selected Pet")
+-- ---- CENTER: loaded-team name → 3 pet cards → team facts ------------------
+-- (Inspired by Rematch's at-a-glance team view; all original code.)
+local CARD_W, CARD_H, CARD_TOP, CARD_GAP = 226, 110, -92, 6
+local function cardY(s) return CARD_TOP - (s - 1) * (CARD_H + CARD_GAP) end
 
-    local model = CreateFrame("PlayerModel", nil, frame)
-    model:SetSize(138, 150); model:SetPoint("TOP", frame, "TOPLEFT", 368, -56)
-    frame.petModel = model
+local function colorCode(c) return ("|cff%02x%02x%02x"):format(c[1] * 255, c[2] * 255, c[3] * 255) end
 
-    local selInfo = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    selInfo:SetPoint("TOP", frame, "TOPLEFT", 368, -208); selInfo:SetWidth(226)
-    selInfo:SetJustifyH("CENTER"); selInfo:SetSpacing(2)
-    selInfo:SetText("Hover or click a pet to inspect it.")
-    frame.selInfo = selInfo
-
-    -- TEAM: label + 3 slots + name/save
-    local teamLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    teamLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -246); teamLabel:SetText("Team")
-    centerDivider(-262)
-
-    frame.slots = {}
-    for s = 1, 3 do
-        local b = CreateFrame("Button", nil, frame)
-        b:SetSize(44, 44); b:SetPoint("TOP", frame, "TOPLEFT", 368 + (s - 2) * 52, -268)
-        b:RegisterForClicks("LeftButtonUp")
-        b:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
-        b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetSize(38, 38); b.ico:SetPoint("CENTER"); b.ico:SetTexCoord(unpack(ICON_CROP))
-        b:SetScript("OnClick", function()
-            if dropCursorPet(s) then return end
-            state.activeSlot = s
-            local petID = C_PetJournal.GetPetLoadOutInfo(s)
-            if petID then
-                local speciesID, customName, level, _, _, _, _, name, _, petType = C_PetJournal.GetPetInfoByPetID(petID)
-                local rarity = select(5, C_PetJournal.GetPetStats(petID))
-                UI:ShowCard({ petID = petID, speciesID = speciesID, name = customName or name,
-                              level = level, petType = petType, rarity = rarity })
-            end
-            UI:RefreshLoadout()
-        end)
-        b:SetScript("OnReceiveDrag", function() dropCursorPet(s) end)
-        b:SetScript("OnEnter", function(self)
-            local petID = C_PetJournal.GetPetLoadOutInfo(s)
-            if not petID then return end
-            local speciesID, customName, level, _, _, _, _, name, _, petType = C_PetJournal.GetPetInfoByPetID(petID)
-            local rarity = select(5, C_PetJournal.GetPetStats(petID))
-            ns.PetCard:Show(self, {
-                petID = petID, speciesID = speciesID, name = customName or name,
-                level = level, petType = petType, rarity = rarity,
-            })
-        end)
-        b:SetScript("OnLeave", function() ns.PetCard:Hide() end)
-        frame.slots[s] = b
+-- A shared icon flyout: click an ability on a card to pick its alternate.
+local function buildAbilityFlyout()
+    local fo = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    fo:SetFrameStrata("DIALOG"); fo:SetSize(80, 44)
+    if fo.SetBackdrop then
+        fo:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+        fo:SetBackdropColor(0.05, 0.05, 0.07, 1); fo:SetBackdropBorderColor(0.55, 0.45, 0.3, 1)
     end
+    fo.opts = {}
+    for k = 1, 2 do
+        local o = CreateFrame("Button", nil, fo)
+        o:SetSize(32, 32); o:SetPoint("LEFT", 6 + (k - 1) * 36, 0)
+        o.ico = o:CreateTexture(nil, "ARTWORK"); o.ico:SetAllPoints(); o.ico:SetTexCoord(unpack(ICON_CROP))
+        o:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
+        o.sel = o:CreateTexture(nil, "OVERLAY"); o.sel:SetPoint("TOPLEFT", -2, 2); o.sel:SetPoint("BOTTOMRIGHT", 2, -2)
+        o.sel:SetTexture("Interface\\Buttons\\CheckButtonHilight"); o.sel:SetBlendMode("ADD"); o.sel:Hide()
+        o:SetScript("OnEnter", function(self)
+            if self.ability then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(self.ability.name or "?")
+                if self.locked then GameTooltip:AddLine("Unlocks at level " .. (self.ability.reqLevel or "?"), 1, .3, .3) end
+                if self.ability.desc then GameTooltip:AddLine(self.ability.desc, .9, .9, .9, true) end
+                GameTooltip:Show()
+            end
+        end)
+        o:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        fo.opts[k] = o
+    end
+    fo:Hide()
+    frame.abilFlyout = fo
+end
 
+local function openAbilityFlyout(anchor, loadoutSlot, abilitySlot)
+    local fo = frame.abilFlyout
+    local layout = ns.Abilities:GetLayout(loadoutSlot)
+    local pair = layout and layout[abilitySlot]
+    if not pair then return end
+    if fo:IsShown() and fo._anchor == anchor then fo:Hide(); return end
+    fo._anchor = anchor
+    for k = 1, 2 do
+        local o, opt = fo.opts[k], pair[k]
+        if opt then
+            o.ability, o.locked = opt, opt.locked
+            o.ico:SetTexture(opt.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+            o.ico:SetDesaturated(opt.locked and true or false)
+            o.sel:SetShown(opt.selected and true or false)
+            o:SetAlpha(opt.locked and 0.4 or 1)
+            o:SetScript("OnClick", function()
+                if not opt.locked then ns.Abilities:Set(loadoutSlot, abilitySlot, opt.id); fo:Hide(); UI:RefreshLoadout() end
+            end)
+            o:Show()
+        else o:Hide() end
+    end
+    fo:ClearAllPoints(); fo:SetPoint("TOP", anchor, "BOTTOM", 0, -2); fo:Show()
+end
+
+function UI:BuildLoadout()
+    -- loaded-team name + Save (top of the center column)
     local nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    nameBox:SetSize(146, 20); nameBox:SetPoint("TOPLEFT", 261, -322); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
+    nameBox:SetSize(150, 20); nameBox:SetPoint("TOPLEFT", 259, -64); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
     frame.nameBox = nameBox
-    local save = btn(frame, "Save", 60, 20); save:SetPoint("LEFT", nameBox, "RIGHT", 8, 0)
+    local save = btn(frame, "Save", 56, 20); save:SetPoint("LEFT", nameBox, "RIGHT", 6, 0)
     save:SetScript("OnClick", function()
         local n = nameBox:GetText(); if n and n ~= "" then ns.Teams:SaveCurrent(n); nameBox:SetText("") end
     end)
 
+    buildAbilityFlyout()
+
+    -- three team pet cards
+    frame.cards = {}
+    for s = 1, 3 do
+        local card = CreateFrame("Button", nil, frame, "BackdropTemplate")
+        card:SetSize(CARD_W, CARD_H); card:SetPoint("TOP", frame, "TOPLEFT", 368, cardY(s))
+        card:RegisterForClicks("LeftButtonUp")
+        if card.SetBackdrop then
+            card:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+                insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+            card:SetBackdropColor(0.09, 0.09, 0.13, 0.85); card:SetBackdropBorderColor(0.3, 0.3, 0.35, 0.9)
+        end
+        card.stripe = card:CreateTexture(nil, "ARTWORK")
+        card.stripe:SetPoint("TOPLEFT", 4, -4); card.stripe:SetPoint("BOTTOMLEFT", 4, 4); card.stripe:SetWidth(3)
+        card.pBorder = card:CreateTexture(nil, "BACKGROUND")
+        card.ico = card:CreateTexture(nil, "ARTWORK"); card.ico:SetSize(46, 46); card.ico:SetPoint("TOPLEFT", 10, -10); card.ico:SetTexCoord(unpack(ICON_CROP))
+        card.pBorder:SetPoint("TOPLEFT", card.ico, "TOPLEFT", -1, 1); card.pBorder:SetPoint("BOTTOMRIGHT", card.ico, "BOTTOMRIGHT", 1, -1)
+        card.lvl = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.lvl:SetPoint("BOTTOMRIGHT", card.ico, "BOTTOMRIGHT", 2, -1)
+        card.nm = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        card.nm:SetPoint("TOPLEFT", 62, -12); card.nm:SetWidth(92); card.nm:SetJustifyH("LEFT"); card.nm:SetWordWrap(false)
+        card.breed = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.breed:SetPoint("TOPLEFT", 62, -30)
+        card.hpBarBg = card:CreateTexture(nil, "ARTWORK"); card.hpBarBg:SetColorTexture(0, 0, 0, 0.6)
+        card.hpBarBg:SetPoint("TOPLEFT", 62, -48); card.hpBarBg:SetSize(92, 11)
+        card.hpBar = card:CreateTexture(nil, "OVERLAY"); card.hpBar:SetColorTexture(0.2, 0.7, 0.2, 0.9)
+        card.hpBar:SetPoint("TOPLEFT", 63, -49); card.hpBar:SetSize(90, 9)
+        card.hp = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.hp:SetPoint("LEFT", card.hpBarBg, "LEFT", 5, 0)
+        card.abil = {}
+        for i = 1, 3 do
+            local ab = CreateFrame("Button", nil, card)
+            ab:SetSize(28, 28); ab:SetPoint("TOPLEFT", 62 + (i - 1) * 32, -66)
+            ab.ico = ab:CreateTexture(nil, "ARTWORK"); ab.ico:SetAllPoints(); ab.ico:SetTexCoord(unpack(ICON_CROP))
+            ab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
+            ab:SetScript("OnClick", function(self) openAbilityFlyout(self, s, i) end)
+            ab:SetScript("OnEnter", function(self)
+                if self.ability then
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(self.ability.name or "?")
+                    if self.ability.desc then GameTooltip:AddLine(self.ability.desc, .9, .9, .9, true) end
+                    GameTooltip:AddLine("Click to swap", .6, .8, 1); GameTooltip:Show()
+                end
+            end)
+            ab:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            card.abil[i] = ab
+        end
+        local model = CreateFrame("PlayerModel", nil, card)
+        model:SetSize(56, 88); model:SetPoint("TOPRIGHT", -8, -10); card.model = model
+        card.empty = card:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+        card.empty:SetPoint("CENTER"); card.empty:SetText("Empty — click a pet to slot it")
+
+        card:SetScript("OnClick", function()
+            if dropCursorPet(s) then return end
+            state.activeSlot = s; UI:RefreshLoadout()
+        end)
+        card:SetScript("OnReceiveDrag", function() dropCursorPet(s) end)
+        card:SetScript("OnEnter", function(self)
+            if not self.curPetID then return end
+            local sp, cn, lv, _, _, _, _, nmv, _, pt = C_PetJournal.GetPetInfoByPetID(self.curPetID)
+            local rar = select(5, C_PetJournal.GetPetStats(self.curPetID))
+            ns.PetCard:Show(self, { petID = self.curPetID, speciesID = sp, name = cn or nmv, level = lv, petType = pt, rarity = rar })
+        end)
+        card:SetScript("OnLeave", function() ns.PetCard:Hide() end)
+        frame.cards[s] = card
+    end
+
     -- TEAM FACTS (bottom)
     local factsLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    factsLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -426); factsLabel:SetText("Team facts")
-    centerDivider(-442)
+    factsLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -434); factsLabel:SetText("Team facts")
+    centerDivider(-450)
     local facts = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    facts:SetPoint("TOP", frame, "TOPLEFT", 368, -450); facts:SetWidth(226)
+    facts:SetPoint("TOP", frame, "TOPLEFT", 368, -454); facts:SetWidth(226)
     facts:SetJustifyH("CENTER"); facts:SetSpacing(2)
     frame.facts = facts
 end
 
--- ---- MOVES picker (center, below the buttons) -----------------------------
-function UI:BuildMoves()
-    frame.movesLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    frame.movesLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -348); frame.movesLabel:SetText("Moves")
-
-    frame.moveBtns = {}
+-- refresh one team card from the live loadout
+local function refreshTeamCard(s)
+    local card = frame.cards and frame.cards[s]; if not card then return end
+    local petID = C_PetJournal.GetPetLoadOutInfo(s)
+    card.curPetID = petID
+    if s == state.activeSlot then card:SetBackdropBorderColor(0.95, 0.82, 0.2, 1)
+    else card:SetBackdropBorderColor(0.3, 0.3, 0.35, 0.9) end
+    if not petID then
+        card.ico:Hide(); card.pBorder:Hide(); card.stripe:Hide(); card.lvl:SetText("")
+        card.nm:SetText(""); card.breed:SetText(""); card.hp:SetText(""); card.hpBar:Hide(); card.hpBarBg:Hide()
+        for i = 1, 3 do card.abil[i]:Hide() end
+        if card.model.ClearModel then card.model:ClearModel() end
+        card.empty:Show()
+        return
+    end
+    card.empty:Hide()
+    local speciesID, customName, level, _, _, displayID, _, name, icon, petType = C_PetJournal.GetPetInfoByPetID(petID)
+    local health, _, _, _, rarity = C_PetJournal.GetPetStats(petID)
+    local rc = RARITY_COLOR[rarity or 2] or RARITY_COLOR[2]
+    card.ico:SetTexture(icon); card.ico:Show()
+    card.pBorder:SetColorTexture(rc[1], rc[2], rc[3], 1); card.pBorder:Show()
+    card.stripe:SetColorTexture(rc[1], rc[2], rc[3], 1); card.stripe:Show()
+    card.lvl:SetText(level and tostring(level) or "")
+    card.nm:SetTextColor(rc[1], rc[2], rc[3]); card.nm:SetText(customName or name or "?")
+    local breed = ns.Breed and ns.Breed:Get(petID)
+    if petType and ns.Types.ABBR[petType] then
+        card.breed:SetText(colorCode(ns.Types:Color(petType)) .. ns.Types:Abbr(petType) .. "|r" .. (breed and ("  |cff8ec5ff" .. breed .. "|r") or ""))
+    else card.breed:SetText(breed and ("|cff8ec5ff" .. breed .. "|r") or "") end
+    card.hpBarBg:Show(); card.hpBar:Show(); card.hp:SetText(health and tostring(health) or "")
+    local layout = ns.Abilities:GetLayout(s)
     for i = 1, 3 do
-        frame.moveBtns[i] = {}
-        for j = 1, 2 do
-            local b = CreateFrame("Button", nil, frame)
-            b:SetSize(30, 30)
-            -- 3 ability slots across (i), the two options stacked below (j) —
-            -- matches the in-battle ability bar.
-            b:SetPoint("TOP", frame, "TOPLEFT", 368 + (i - 2) * 40, -362 - (j - 1) * 32)
-            b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetAllPoints(); b.ico:SetTexCoord(unpack(ICON_CROP))
-            b.sel = b:CreateTexture(nil, "OVERLAY")
-            b.sel:SetPoint("TOPLEFT", -2, 2); b.sel:SetPoint("BOTTOMRIGHT", 2, -2)
-            b.sel:SetTexture("Interface\\Buttons\\CheckButtonHilight"); b.sel:SetBlendMode("ADD"); b.sel:Hide()
-            b:SetScript("OnClick", function(self)
-                if self.abilityID and not self.locked then
-                    ns.Abilities:Set(state.activeSlot, i, self.abilityID)
-                    UI:RefreshMoves()
-                end
-            end)
-            b:SetScript("OnEnter", function(self)
-                if self.ability then
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip:AddLine(self.ability.name)
-                    if self.locked then GameTooltip:AddLine("Unlocks at level " .. (self.ability.reqLevel or "?"), 1, .3, .3) end
-                    if self.ability.desc then GameTooltip:AddLine(self.ability.desc, .9, .9, .9, true) end
-                    GameTooltip:Show()
-                end
-            end)
-            b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-            b:Hide()
-            frame.moveBtns[i][j] = b
-        end
+        local ab = card.abil[i]
+        local pair = layout and layout[i]
+        local chosen = pair and ((pair[1] and pair[1].selected and pair[1]) or (pair[2] and pair[2].selected and pair[2]) or pair[1])
+        if chosen then
+            ab.ability = chosen
+            ab.ico:SetTexture(chosen.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+            ab:Show()
+        else ab.ability = nil; ab:Hide() end
+    end
+    if card.model and displayID and card.model.SetDisplayInfo then
+        if card.model.ClearModel then card.model:ClearModel() end
+        pcall(function()
+            card.model:SetDisplayInfo(displayID)
+            if card.model.SetCamDistanceScale then card.model:SetCamDistanceScale(1.0) end
+            if card.model.SetPortraitZoom then card.model:SetPortraitZoom(0) end
+        end)
     end
 end
 
-function UI:RefreshMoves()
-    if not frame or not frame.moveBtns then return end
-    local slots = ns.Abilities:GetLayout(state.activeSlot)
-    frame.movesLabel:SetText(slots and ("Moves — slot " .. state.activeSlot .. " (click to choose)") or "Moves — slot is empty")
-    for i = 1, 3 do
-        for j = 1, 2 do
-            local b = frame.moveBtns[i][j]
-            local opt = slots and slots[i] and slots[i][j]
-            if opt then
-                b.abilityID = opt.id; b.ability = opt; b.locked = opt.locked
-                b.ico:SetTexture(opt.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                b.ico:SetDesaturated(opt.locked and true or false)
-                b:SetAlpha(opt.locked and 0.4 or 1)
-                b.sel:SetShown(opt.selected and true or false)
-                b:Show()
-            else
-                b.abilityID = nil; b.ability = nil; b:Hide()
-            end
-        end
-    end
-end
+-- (Abilities now live on each team card — see BuildLoadout/refreshTeamCard.)
 
 -- ---- TEAMS / QUEUE (right) ------------------------------------------------
 function UI:BuildTeams()
@@ -770,36 +835,10 @@ end
 -- REFRESH
 -- ===========================================================================
 -- Update the center "Selected Pet" model + stats text.
+-- Remember the last-clicked pet. The team cards in the center now show full
+-- per-pet detail, so this no longer drives a separate "selected pet" panel.
 function UI:ShowCard(pet)
-    if not frame or not pet then return end
-    -- 3D model
-    if frame.petModel then
-        local displayID = pet.petID and select(6, C_PetJournal.GetPetInfoByPetID(pet.petID))
-        if frame.petModel.ClearModel then frame.petModel:ClearModel() end
-        if displayID and frame.petModel.SetDisplayInfo then
-            pcall(function()
-                frame.petModel:SetDisplayInfo(displayID)
-                if frame.petModel.SetCamDistanceScale then frame.petModel:SetCamDistanceScale(0.85) end
-                if frame.petModel.SetPortraitZoom then frame.petModel:SetPortraitZoom(0) end
-                if frame.petModel.SetPosition then frame.petModel:SetPosition(0, 0, 0) end
-            end)
-        end
-    end
-    -- compact, centered stats for the Selected Pet panel
-    if not frame.selInfo then return end
-    local RAR = { [1] = "Poor", [2] = "Common", [3] = "Uncommon", [4] = "Rare", [5] = "Epic" }
-    local typeName = pet.petType and ns.Types.NAME[pet.petType] or "?"
-    local breed = pet.breed or (ns.Breed and ns.Breed:Get(pet.petID))
-    local line1 = "|cffffd100" .. (pet.name or "Pet") .. "|r"
-    local line2 = ("Lvl %d   %s%s%s"):format(pet.level or 1, typeName,
-        RAR[pet.rarity or 0] and ("   " .. RAR[pet.rarity or 0]) or "",
-        breed and ("   |cff8ec5ff" .. breed .. "|r") or "")
-    local line3
-    if C_PetJournal.GetPetStats and pet.petID then
-        local hh, _, pp, ss = C_PetJournal.GetPetStats(pet.petID)
-        if hh then line3 = ("%d HP    %d Pow    %d Spd"):format(hh, pp, ss) end
-    end
-    frame.selInfo:SetText(line1 .. "\n" .. line2 .. (line3 and ("\n" .. line3) or ""))
+    if pet then state.selectedPet = pet end
 end
 
 -- Summarize the currently loaded team (totals + type coverage).
@@ -857,16 +896,11 @@ function UI:RefreshCollection()
 end
 
 function UI:RefreshLoadout()
-    if not frame then return end
-    for s, b in ipairs(frame.slots) do
-        local petID = C_PetJournal.GetPetLoadOutInfo(s)
-        local icon = petID and select(9, C_PetJournal.GetPetInfoByPetID(petID))
-        b.ico:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-        if s == state.activeSlot then b:LockHighlight() else b:UnlockHighlight() end
-    end
+    if not frame or not frame.cards then return end
+    if frame.abilFlyout then frame.abilFlyout:Hide() end
+    for s = 1, 3 do refreshTeamCard(s) end
     local id = ns.db and ns.db.loaded
     frame.nameBox:SetText(id and ns.db.teams[id] and ns.db.teams[id].name or "")
-    self:RefreshMoves()
     self:RefreshFacts()
 end
 
