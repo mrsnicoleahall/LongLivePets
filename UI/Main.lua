@@ -73,6 +73,9 @@ local function makeDropdown(parent, w, options, onSelect, initialText)
     local dd = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     dd:SetSize(w, 20); dd:SetText(initialText or "")
     function dd:SelectText(t) self:SetText(t) end
+    -- keep the button label clipped to the button so it never overflows
+    local fs = dd.GetFontString and dd:GetFontString()
+    if fs and fs.SetWidth then fs:SetWidth(w - 10); fs:SetWordWrap(false) end
 
     local menu = CreateFrame("Frame", nil, dd, "BackdropTemplate")
     menu:SetFrameStrata("DIALOG"); menu:SetPoint("TOPLEFT", dd, "BOTTOMLEFT", 0, -2)
@@ -96,7 +99,7 @@ local function makeDropdown(parent, w, options, onSelect, initialText)
         local sw = t.GetStringWidth and t:GetStringWidth()
         if type(sw) == "number" and sw > maxW then maxW = sw end
         ob:SetScript("OnClick", function()
-            dd:SetText(opt.text); menu:Hide(); openMenu = nil
+            dd:SetText(opt.short or opt.text); menu:Hide(); openMenu = nil
             onSelect(opt.value)
         end)
         y = y + 18
@@ -301,9 +304,9 @@ function UI:BuildCollection()
     moreDD:SetPoint("TOPLEFT", 16, -108)
 
     -- Counter dropdown: Strong Vs / Tough Vs a chosen enemy type
-    local counterOpts = { { text = "Counter: off", value = nil } }
-    for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Strong vs " .. ns.Types.NAME[i], value = { mode = "strong", t = i } } end
-    for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Tough vs " .. ns.Types.NAME[i], value = { mode = "tough", t = i } } end
+    local counterOpts = { { text = "Counter: off", short = "Counter: off", value = nil } }
+    for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Strong vs " .. ns.Types.NAME[i], short = "Str: " .. ns.Types.NAME[i], value = { mode = "strong", t = i } } end
+    for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Tough vs " .. ns.Types.NAME[i], short = "Tgh: " .. ns.Types.NAME[i], value = { mode = "tough", t = i } } end
     local counterDD = makeDropdown(frame, 110, counterOpts, function(v)
         if not v then state.strongVs = nil; state.toughVs = nil
         elseif v.mode == "strong" then state.strongVs = v.t; state.toughVs = nil
