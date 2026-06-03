@@ -48,6 +48,8 @@ function Roster:Filter(opts)
     opts = opts or {}
     local search = opts.search and opts.search ~= "" and opts.search:lower() or nil
     local ability = opts.ability and opts.ability ~= "" and opts.ability:lower() or nil
+    -- combined: matches pet NAME or any ability name/description
+    local text = opts.text and opts.text ~= "" and opts.text:lower() or nil
     local strongIdx = opts.strongVs and ns.Types:StrongAttackerIndexVs(opts.strongVs)
     local toughIdx  = opts.toughVs and ns.Types:ToughTypeIndexVs(opts.toughVs)
 
@@ -66,6 +68,12 @@ function Roster:Filter(opts)
         if ok and opts.markedOnly and not p.marker then ok = false end
         if ok and opts.marker and p.marker ~= opts.marker then ok = false end
         if ok and ability and not self:SpeciesHasAbilityText(p.speciesID, ability) then ok = false end
+        if ok and text then
+            -- name first (cheap); only check abilities if the name doesn't match
+            local hit = p.name:lower():find(text, 1, true)
+                or self:SpeciesHasAbilityText(p.speciesID, text)
+            if not hit then ok = false end
+        end
         if ok then out[#out + 1] = p end
     end
 

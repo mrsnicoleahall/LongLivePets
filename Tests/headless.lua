@@ -366,5 +366,10 @@ check(ns.Integration:Arm(scriptedTeam) == true, "arm reports success")
 check(setScriptArg == fakeScript, "Director:SetScript received the script object")
 _G.tdBattlePetScript = nil; C_AddOns.IsAddOnLoaded = oldLoaded
 
+print("\n[22] combined name + ability search (single box)")
+check(#ns.Roster:Filter({ text = "alpha" }) == 1, "combined search matches a pet name")
+check(#ns.Roster:Filter({ text = "bite" }) == 2, "combined search matches ability text too")
+check(#ns.Roster:Filter({ text = "zzzznope" }) == 0, "combined search rejects misses")
+
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

@@ -260,17 +260,15 @@ end
 function UI:BuildCollection()
     panelTitle(frame, "Collection", 16)
 
+    -- one search box: matches pet name OR ability text (no mode toggle)
     local search = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
-    search:SetSize(150, 20); search:SetPoint("TOPLEFT", 16, -60)
-    search:SetScript("OnTextChanged", function(self) state.search = self:GetText() or ""; UI:RefreshCollection() end)
-    frame.search = search
-
-    local modeBtn = btn(frame, "name", 60, 20)
-    modeBtn:SetPoint("LEFT", search, "RIGHT", 6, 0)
-    modeBtn:SetScript("OnClick", function()
-        state.mode = state.mode == "name" and "ability" or "name"
-        modeBtn:SetText(state.mode); UI:RefreshCollection()
+    search:SetSize(218, 20); search:SetPoint("TOPLEFT", 16, -60)
+    if search.Instructions then search.Instructions:SetText("Search name or move…") end
+    search:SetScript("OnTextChanged", function(self)
+        if SearchBoxTemplate_OnTextChanged then SearchBoxTemplate_OnTextChanged(self) end
+        state.search = self:GetText() or ""; UI:RefreshCollection()
     end)
+    frame.search = search
 
     -- Type dropdown (All + the 10 families)
     local typeOpts = { { text = "Type: All", value = nil } }
@@ -588,7 +586,7 @@ function UI:RefreshCollection()
         markedOnly = state.markedOnly, rarity = state.rarity,
         strongVs = state.strongVs, toughVs = state.toughVs,
     }
-    if state.mode == "ability" then opts.ability = state.search else opts.search = state.search end
+    opts.text = state.search
     colPets = ns.Roster:Filter(opts)
     frame.colEmpty:SetShown(#colPets == 0)
 
