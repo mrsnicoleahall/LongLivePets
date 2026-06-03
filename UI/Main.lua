@@ -328,13 +328,21 @@ function UI:BuildCollection()
 
         row:SetScript("OnClick", function(self, mouse)
             if not self.pet then return end
+            local p = self.pet
             if mouse == "RightButton" then
-                ns.Markers:Cycle(self.pet.speciesID)
+                UI:ShowMenu({
+                    { text = "Slot into active slot", fn = function() placePet(p, state.activeSlot); UI:ShowCard(p) end },
+                    { text = "Add to leveling queue", fn = function()
+                        ns.Queue:Add(p.petID); ns:Print(p.name .. " added to the leveling queue.")
+                    end },
+                    { text = "Cycle marker", fn = function() ns.Markers:Cycle(p.speciesID) end },
+                    { text = "Clear marker", fn = function() ns.Markers:Clear(p.speciesID) end },
+                })
             else
                 -- fill the active slot and show that pet's card + moves
-                state.selectedPet = self.pet
-                placePet(self.pet, state.activeSlot)
-                UI:ShowCard(self.pet)
+                state.selectedPet = p
+                placePet(p, state.activeSlot)
+                UI:ShowCard(p)
             end
         end)
         row:SetScript("OnEnter", function(self) if self.pet then UI:ShowCard(self.pet) end end)
