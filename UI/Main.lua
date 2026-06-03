@@ -232,9 +232,9 @@ local function build()
         div:SetColorTexture(0.65, 0.52, 0.25, 0.9)
         return c
     end
-    columnFrame(10, 248)    -- Collection
-    columnFrame(252, 484)   -- Current Team
-    columnFrame(488, 872)   -- Teams / Queue
+    columnFrame(10, 326)    -- Collection (widest)
+    columnFrame(330, 606)   -- Current Team
+    columnFrame(610, 872)   -- Teams / Queue (narrowest)
 
     -- header bars live on the MAIN frame (BACKGROUND) so the titles, which are
     -- also on the main frame (OVERLAY), draw on top of them. (The columns have
@@ -245,7 +245,7 @@ local function build()
         hb:SetPoint("TOPRIGHT", frame, "TOPLEFT", x2 - 4, -38)
         hb:SetHeight(20); hb:SetColorTexture(0.16, 0.14, 0.09, 0.95)
     end
-    headerBar(10, 248); headerBar(252, 484); headerBar(488, 872)
+    headerBar(10, 326); headerBar(330, 606); headerBar(610, 872)
 
     UI:BuildCollection()
     UI:BuildLoadout()
@@ -425,7 +425,7 @@ function UI:BuildCollection()
 
     -- one search box: matches pet name OR ability text (no mode toggle)
     local search = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
-    search:SetSize(218, 20); search:SetPoint("TOPLEFT", 16, -60)
+    search:SetSize(296, 20); search:SetPoint("TOPLEFT", 16, -60)
     if search.Instructions then search.Instructions:SetText("Search name or move…") end
     search:SetScript("OnTextChanged", function(self)
         if SearchBoxTemplate_OnTextChanged then SearchBoxTemplate_OnTextChanged(self) end
@@ -466,7 +466,7 @@ function UI:BuildCollection()
     typeBtns[1].selBg:Show()   -- "All" active by default
 
     -- Level + Filter dropdowns
-    local levelDD = makeDropdown(frame, 104, {
+    local levelDD = makeDropdown(frame, 144, {
         { text = "All levels", value = "all" },
         { text = "Level 25", value = "max" },
         { text = "Leveling (1-24)", value = "low" },
@@ -476,7 +476,7 @@ function UI:BuildCollection()
     end, "All levels")
     levelDD:SetPoint("TOPLEFT", 16, -110)
 
-    local moreDD = makeDropdown(frame, 104, {
+    local moreDD = makeDropdown(frame, 144, {
         { text = "All pets", value = "all" },
         { text = "Marked only", value = "marked" },
         { text = "Rare+ only", value = "rare" },
@@ -490,7 +490,7 @@ function UI:BuildCollection()
     local counterOpts = { { text = "Counter: off", short = "Counter: off", value = nil } }
     for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Strong vs " .. ns.Types.NAME[i], short = "Str: " .. ns.Types.NAME[i], value = { mode = "strong", t = i } } end
     for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Tough vs " .. ns.Types.NAME[i], short = "Tgh: " .. ns.Types.NAME[i], value = { mode = "tough", t = i } } end
-    local counterDD = makeDropdown(frame, 214, counterOpts, function(v)
+    local counterDD = makeDropdown(frame, 294, counterOpts, function(v)
         if not v then state.strongVs = nil; state.toughVs = nil
         elseif v.mode == "strong" then state.strongVs = v.t; state.toughVs = nil
         else state.toughVs = v.t; state.strongVs = nil end
@@ -499,7 +499,7 @@ function UI:BuildCollection()
     counterDD:SetPoint("TOPLEFT", 16, -134)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 16, -160); list:SetSize(210, ROW_H * COL_ROWS)
+    list:SetPoint("TOPLEFT", 16, -160); list:SetSize(292, ROW_H * COL_ROWS)
     list:EnableMouseWheel(true)
     for i = 1, COL_ROWS do
         local row = CreateFrame("Button", nil, list)
@@ -569,13 +569,13 @@ end
 -- a short gold divider centered under a center sub-section label
 local function centerDivider(y)
     local d = frame:CreateTexture(nil, "OVERLAY")
-    d:SetSize(220, 1); d:SetPoint("TOP", frame, "TOPLEFT", 368, y)
+    d:SetSize(256, 1); d:SetPoint("TOP", frame, "TOPLEFT", 468, y)
     d:SetColorTexture(0.5, 0.42, 0.2, 0.7)
 end
 
 -- ---- CENTER: loaded-team name → 3 pet cards → team facts ------------------
 -- (Inspired by Rematch's at-a-glance team view; all original code.)
-local CARD_W, CARD_H, CARD_TOP, CARD_GAP = 226, 126, -92, 8
+local CARD_W, CARD_H, CARD_TOP, CARD_GAP = 262, 126, -92, 8
 local function cardY(s) return CARD_TOP - (s - 1) * (CARD_H + CARD_GAP) end
 
 local function colorCode(c) return ("|cff%02x%02x%02x"):format(c[1] * 255, c[2] * 255, c[3] * 255) end
@@ -640,11 +640,11 @@ end
 function UI:BuildLoadout()
     -- center column header label
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", frame, "TOPLEFT", 368, -40); title:SetText("Current Team")
+    title:SetPoint("TOP", frame, "TOPLEFT", 468, -40); title:SetText("Current Team")
 
     -- loaded-team name + Save
     local nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    nameBox:SetSize(150, 20); nameBox:SetPoint("TOPLEFT", 259, -64); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
+    nameBox:SetSize(150, 20); nameBox:SetPoint("TOPLEFT", 362, -64); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
     frame.nameBox = nameBox
     local save = btn(frame, "Save", 56, 20); save:SetPoint("LEFT", nameBox, "RIGHT", 6, 0)
     save:SetScript("OnClick", function()
@@ -657,7 +657,7 @@ function UI:BuildLoadout()
     frame.cards = {}
     for s = 1, 3 do
         local card = CreateFrame("Button", nil, frame, "BackdropTemplate")
-        card:SetSize(CARD_W, CARD_H); card:SetPoint("TOP", frame, "TOPLEFT", 368, cardY(s))
+        card:SetSize(CARD_W, CARD_H); card:SetPoint("TOP", frame, "TOPLEFT", 468, cardY(s))
         card:RegisterForClicks("LeftButtonUp")
         if card.SetBackdrop then
             card:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -672,14 +672,14 @@ function UI:BuildLoadout()
         card.pBorder:SetPoint("TOPLEFT", card.ico, "TOPLEFT", -1, 1); card.pBorder:SetPoint("BOTTOMRIGHT", card.ico, "BOTTOMRIGHT", 1, -1)
         card.lvl = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.lvl:SetPoint("BOTTOMRIGHT", card.ico, "BOTTOMRIGHT", 2, -1)
         card.nm = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        card.nm:SetPoint("TOPLEFT", 66, -12); card.nm:SetWidth(86)
+        card.nm:SetPoint("TOPLEFT", 66, -12); card.nm:SetWidth(108)
         card.nm:SetJustifyH("LEFT"); card.nm:SetJustifyV("TOP"); card.nm:SetWordWrap(true)
         if card.nm.SetMaxLines then card.nm:SetMaxLines(2) end
         card.breed = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.breed:SetPoint("TOPLEFT", 66, -48)
         card.hpBarBg = card:CreateTexture(nil, "ARTWORK"); card.hpBarBg:SetColorTexture(0, 0, 0, 0.6)
-        card.hpBarBg:SetPoint("TOPLEFT", 66, -68); card.hpBarBg:SetSize(96, 13)
+        card.hpBarBg:SetPoint("TOPLEFT", 66, -68); card.hpBarBg:SetSize(120, 13)
         card.hpBar = card:CreateTexture(nil, "ARTWORK", nil, 1); card.hpBar:SetColorTexture(0.2, 0.7, 0.2, 0.95)
-        card.hpBar:SetPoint("TOPLEFT", card.hpBarBg, "TOPLEFT", 1, -1); card.hpBar:SetSize(94, 11)
+        card.hpBar:SetPoint("TOPLEFT", card.hpBarBg, "TOPLEFT", 1, -1); card.hpBar:SetSize(118, 11)
         card.hp = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); card.hp:SetPoint("CENTER", card.hpBarBg, "CENTER", 0, 0)
         card.abil = {}
         for i = 1, 3 do
@@ -732,10 +732,10 @@ function UI:BuildLoadout()
 
     -- TEAM FACTS (bottom) — totals + a plain-language read on the team
     local factsLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    factsLabel:SetPoint("TOP", frame, "TOPLEFT", 368, -498); factsLabel:SetText("Team facts")
+    factsLabel:SetPoint("TOP", frame, "TOPLEFT", 468, -498); factsLabel:SetText("Team facts")
     centerDivider(-514)
     local facts = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    facts:SetPoint("TOP", frame, "TOPLEFT", 368, -518); facts:SetWidth(228)
+    facts:SetPoint("TOP", frame, "TOPLEFT", 468, -518); facts:SetWidth(256)
     facts:SetJustifyH("CENTER"); facts:SetSpacing(3)
     frame.facts = facts
 end
@@ -773,7 +773,7 @@ local function refreshTeamCard(s)
     card.hpBarBg:Show(); card.hpBar:Show()
     local frac = (maxHealth and maxHealth > 0 and health) and (health / maxHealth) or 1
     if frac < 0 then frac = 0 elseif frac > 1 then frac = 1 end
-    card.hpBar:SetWidth(math.max(1, 94 * frac))
+    card.hpBar:SetWidth(math.max(1, 118 * frac))
     if frac > 0.5 then card.hpBar:SetColorTexture(0.2, 0.7, 0.2, 0.95)
     elseif frac > 0.2 then card.hpBar:SetColorTexture(0.85, 0.65, 0.1, 0.95)
     else card.hpBar:SetColorTexture(0.8, 0.2, 0.2, 0.95) end
@@ -808,17 +808,17 @@ function UI:BuildTeams()
         { text = "Teams", value = "teams" },
         { text = "Queue", value = "queue" },
     }, function(v) state.rightMode = v; UI:RefreshRight() end, "Teams")
-    modeDD:SetPoint("TOPLEFT", 500, -38); frame.modeDD = modeDD
+    modeDD:SetPoint("TOPLEFT", 618, -38); frame.modeDD = modeDD
     local newG = btn(frame, "+ Group", 80, 20); newG:SetPoint("LEFT", modeDD, "RIGHT", 8, 0)
     newG:SetScript("OnClick", function()
         UI:PromptText("New group name", "", function(n) if n and n ~= "" then ns.Groups:Create(n) end end)
     end)
 
     frame.teamsHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    frame.teamsHint:SetPoint("TOPLEFT", 500, -64)
+    frame.teamsHint:SetPoint("TOPLEFT", 618, -64)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 500, -80); list:SetSize(348, ROW_H * TEAM_ROWS)
+    list:SetPoint("TOPLEFT", 618, -80); list:SetSize(236, ROW_H * TEAM_ROWS)
     list:EnableMouseWheel(true)
     for i = 1, TEAM_ROWS do
         local row = CreateFrame("Button", nil, list)
@@ -834,7 +834,7 @@ function UI:BuildTeams()
         row.pics = {}
         for k = 1, 3 do
             local pic = row:CreateTexture(nil, "ARTWORK")
-            pic:SetSize(26, 26); pic:SetPoint("LEFT", 4 + (k - 1) * 28, 0); pic:SetTexCoord(unpack(ICON_CROP))
+            pic:SetSize(24, 24); pic:SetPoint("LEFT", 4 + (k - 1) * 26, 0); pic:SetTexCoord(unpack(ICON_CROP))
             local bd = row:CreateTexture(nil, "BACKGROUND")
             bd:SetPoint("TOPLEFT", pic, "TOPLEFT", -1, 1); bd:SetPoint("BOTTOMRIGHT", pic, "BOTTOMRIGHT", 1, -1)
             pic.bd = bd; pic:Hide(); bd:Hide()
@@ -870,7 +870,7 @@ function UI:BuildTeams()
 
     -- bottom row: separate Export / Import. (Send-to-player still works via a
     -- team's right-click menu; the always-visible send box is gone.)
-    local exportB = btn(frame, "Export team", 104, 22); exportB:SetPoint("BOTTOMLEFT", 500, 16)
+    local exportB = btn(frame, "Export", 78, 22); exportB:SetPoint("BOTTOMLEFT", 618, 16)
     exportB:SetScript("OnClick", function()
         local id = ns.db and ns.db.loaded
         local team = id and ns.db.teams[id]
@@ -878,7 +878,7 @@ function UI:BuildTeams()
         UI:ShowText(('Export — "%s" (team + script) to share / wow-petguide / tdBattlePetScript'):format(team.name),
             "export", ns.Serialize:ExportStrategy(team))
     end)
-    local importB = btn(frame, "Import", 104, 22); importB:SetPoint("LEFT", exportB, "RIGHT", 8, 0)
+    local importB = btn(frame, "Import", 78, 22); importB:SetPoint("LEFT", exportB, "RIGHT", 8, 0)
     importB:SetScript("OnClick", function()
         UI:ShowText("Import — paste a team or backup string", "import", "")
     end)
@@ -1166,7 +1166,7 @@ function UI:RenderRight()
             local t = d.team
             row.ico:Hide(); row.headerBg:Hide(); clearPetRow(row)
             -- show the team's 3 pet portraits, name to their right
-            showTeamPics(row, ns.db.teams[t.id]); setNameLeft(row, 82)
+            showTeamPics(row, ns.db.teams[t.id]); setNameLeft(row, 84)
             local label = t.name
             if t.loaded then label = "|cff44ff44>|r " .. label end
             if (t.wins + t.losses) > 0 then label = label .. (" |cffaaaaaa%d-%d|r"):format(t.wins, t.losses) end
