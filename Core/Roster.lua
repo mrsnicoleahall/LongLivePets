@@ -49,7 +49,12 @@ function Roster:Filter(opts)
     local search = opts.search and opts.search ~= "" and opts.search:lower() or nil
     local ability = opts.ability and opts.ability ~= "" and opts.ability:lower() or nil
     -- combined: matches pet NAME or any ability name/description
-    local text = opts.text and opts.text ~= "" and opts.text:lower() or nil
+    -- (strip surrounding quotes/space so a quoted search still works)
+    local text = opts.text
+    if text then
+        text = text:gsub('^[%s"\']+', ''):gsub('[%s"\']+$', '')
+        text = (text ~= "" and text:lower()) or nil
+    end
     local strongIdx = opts.strongVs and ns.Types:StrongAttackerIndexVs(opts.strongVs)
     local toughIdx  = opts.toughVs and ns.Types:ToughTypeIndexVs(opts.toughVs)
 

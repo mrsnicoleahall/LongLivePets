@@ -374,6 +374,7 @@ print("\n[22] combined name + ability search (single box)")
 check(#ns.Roster:Filter({ text = "alpha" }) == 1, "combined search matches a pet name")
 check(#ns.Roster:Filter({ text = "bite" }) == 2, "combined search matches ability text too")
 check(#ns.Roster:Filter({ text = "zzzznope" }) == 0, "combined search rejects misses")
+check(#ns.Roster:Filter({ text = '"alpha"' }) == 1, "surrounding quotes are stripped")
 
 print("\n[23] Rematch migration")
 wipe(ns.db.teams); wipe(ns.db.groups); ns.db.nextID = 1; ns.db.nextGroupID = 1
