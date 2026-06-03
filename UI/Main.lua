@@ -23,9 +23,10 @@ local ROW_H = 22
 local frame
 local colRows, teamRows = {}, {}
 local colPets = {}            -- current filtered collection list
+local rightDisp = {}          -- current right-panel display list (headers/teams/queue)
 local state = {
     activeSlot = 1, search = "", typeIndex = nil, maxOnly = false, colOffset = 0,
-    mode = "name", markedOnly = false, rightMode = "teams",
+    mode = "name", markedOnly = false, rightMode = "teams", rightOffset = 0,
     selectedTeam = nil, selectedPet = nil,
 }
 
@@ -507,7 +508,8 @@ function UI:BuildTeams()
     frame.teamsHint:SetPoint("TOPLEFT", 500, -80)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 500, -96); list:SetSize(262, ROW_H * TEAM_ROWS)
+    list:SetPoint("TOPLEFT", 500, -96); list:SetSize(244, ROW_H * TEAM_ROWS)
+    list:EnableMouseWheel(true)
     for i = 1, TEAM_ROWS do
         local row = CreateFrame("Button", nil, list)
         row:SetHeight(ROW_H); row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H); row:SetPoint("TOPRIGHT", 0, -(i - 1) * ROW_H)
@@ -523,6 +525,20 @@ function UI:BuildTeams()
     end
     frame.teamsEmpty = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     frame.teamsEmpty:SetPoint("TOP", 0, -8)
+
+    -- scrollbar + mouse wheel for the (often long) team/queue list
+    local sb = CreateFrame("Slider", nil, frame)
+    sb:SetOrientation("VERTICAL"); sb:SetWidth(14)
+    sb:SetPoint("TOPLEFT", list, "TOPRIGHT", 2, 0)
+    sb:SetPoint("BOTTOMLEFT", list, "BOTTOMRIGHT", 2, 0)
+    sb:SetMinMaxValues(0, 0); sb:SetValueStep(1); sb:SetObeyStepOnDrag(true)
+    sb:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+    local thumb = sb:GetThumbTexture(); if thumb and thumb.SetSize then thumb:SetSize(14, 26) end
+    sb:SetScript("OnValueChanged", function(_, v) state.rightOffset = math.floor((v or 0) + 0.5); UI:RenderRight() end)
+    frame.teamsSlider = sb
+    local function wheel(_, delta) sb:SetValue((sb:GetValue() or 0) - delta) end
+    list:SetScript("OnMouseWheel", wheel)
+    for _, row in ipairs(teamRows) do row:EnableMouseWheel(true); row:SetScript("OnMouseWheel", wheel) end
 
     local ie = btn(frame, "Import/Export", 110, 20); ie:SetPoint("BOTTOMLEFT", 500, 40)
     ie:SetScript("OnClick", function() UI:ShowText("Backup — copy, or paste to import", "both", ns.Serialize:BackupAll()) end)
@@ -651,48 +667,37 @@ function UI:RefreshQueue()
     local q = ns.Queue:Pending()
     frame.teamsEmpty:SetShown(#q == 0)
     if #q == 0 then frame.teamsEmpty:SetText("Queue is empty.\n/llp queue add <slot 1-3>") end
-    for i, row in ipairs(teamRows) do
-        local petID = q[i]
-        if petID then
-            local _, _, level, _, _, _, _, name, icon = C_PetJournal.GetPetInfoByPetID(petID)
-            row.ico:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark"); row.ico:Show()
-            row.nm:SetText(("%d. %s |cffaaaaaaL%s|r"):format(i, name or "pet", tostring(level or "?")))
-            row.up:Hide(); row.dn:Hide()
-            row.del:SetScript("OnClick", function() ns.Queue:Remove(petID) end)
-            row.del:Show()
-            row:SetScript("OnClick", nil)
-            row:Show()
-        else
-            row:Hide()
-        end
-    end
+    rightDisp = {}
+    for i, petID in ipairs(q) do rightDisp[#rightDisp + 1] = { queue = petID, index = i } end
+    self:RenderRight()
 end
 
 function UI:RefreshTeams()
     if not frame then return end
     frame.teamsHint:SetText("Click to select. Right-click for options. Click a group to move there.")
-    -- flat display list (group headers + teams), reused from team list
     local groups, teams = ns.Groups:List(), ns.Teams:List()
     local byGroup, ungrouped = {}, {}
     for _, t in ipairs(teams) do
         if t.group then byGroup[t.group] = byGroup[t.group] or {}; table.insert(byGroup[t.group], t)
         else table.insert(ungrouped, t) end
     end
-    -- Show EVERY group as a header (even empty), then the Ungrouped bucket.
-    -- Clicking a header moves the currently-selected team into that group.
-    local disp = {}
+    rightDisp = {}
     for _, g in ipairs(groups) do
-        disp[#disp + 1] = { header = true, name = g.name, groupID = g.id }
-        for _, t in ipairs(byGroup[g.id] or {}) do disp[#disp + 1] = { team = t } end
+        rightDisp[#rightDisp + 1] = { header = true, name = g.name, groupID = g.id }
+        for _, t in ipairs(byGroup[g.id] or {}) do rightDisp[#rightDisp + 1] = { team = t } end
     end
-    -- Ungrouped header always present (so you can move teams back out), unless
-    -- there are no groups at all (then ungrouped teams just list plainly).
-    if #groups > 0 then disp[#disp + 1] = { header = true, name = "Ungrouped", groupID = nil } end
-    for _, t in ipairs(ungrouped) do disp[#disp + 1] = { team = t } end
-
+    if #groups > 0 then rightDisp[#rightDisp + 1] = { header = true, name = "Ungrouped", groupID = nil } end
+    for _, t in ipairs(ungrouped) do rightDisp[#rightDisp + 1] = { team = t } end
     frame.teamsEmpty:SetShown(#teams == 0 and #groups == 0)
+    self:RenderRight()
+end
+
+-- render the visible window of rightDisp at state.rightOffset, sized by the scrollbar
+function UI:RenderRight()
+    if not frame then return end
+    local off = state.rightOffset or 0
     for i, row in ipairs(teamRows) do
-        local d = disp[i]
+        local d = rightDisp[i + off]
         if not d then
             row:Hide()
         elseif d.header then
@@ -700,12 +705,9 @@ function UI:RefreshTeams()
             local hint = state.selectedTeam and "  |cff44ff44← move here|r" or ""
             row.nm:SetText("|cffffd100" .. d.name .. "|r" .. hint)
             row.up:Hide(); row.dn:Hide()
-            if d.groupID then           -- real group: offer a delete button
-                row.del:SetScript("OnClick", function() ns.Groups:Delete(d.groupID) end)
-                row.del:Show()
-            else                        -- "Ungrouped" can't be deleted
-                row.del:Hide()
-            end
+            if d.groupID then
+                row.del:SetScript("OnClick", function() ns.Groups:Delete(d.groupID) end); row.del:Show()
+            else row.del:Hide() end
             row:SetScript("OnClick", function(_, mouse)
                 if mouse == "RightButton" then
                     if d.groupID then
@@ -714,14 +716,11 @@ function UI:RefreshTeams()
                             { text = "Delete group", fn = function() ns.Groups:Delete(d.groupID) end },
                         })
                     end
-                elseif state.selectedTeam then
-                    ns.Groups:Assign(state.selectedTeam, d.groupID)
-                else
-                    ns:Print("Click a team first to select it, then click a group to move it.")
-                end
+                elseif state.selectedTeam then ns.Groups:Assign(state.selectedTeam, d.groupID)
+                else ns:Print("Click a team first to select it, then click a group to move it.") end
             end)
             row:Show()
-        else
+        elseif d.team then
             local t = d.team
             row.ico:Hide()
             local label = t.name
@@ -743,14 +742,29 @@ function UI:RefreshTeams()
                         { text = "Delete", fn = function() ns.Teams:Delete(t.id) end },
                     })
                 else
-                    state.selectedTeam = t.id; ns.Teams:Load(t.id); UI:RefreshRight()
+                    state.selectedTeam = t.id; ns.Teams:Load(t.id)
                 end
             end)
             row.up:SetScript("OnClick", function() UI:MoveTeam(t, -1) end)
             row.dn:SetScript("OnClick", function() UI:MoveTeam(t, 1) end)
             row.del:SetScript("OnClick", function() ns.Teams:Delete(t.id) end)
             row.up:Show(); row.dn:Show(); row.del:Show(); row:Show()
+        elseif d.queue then
+            local petID = d.queue
+            local _, _, level, _, _, _, _, name, icon = C_PetJournal.GetPetInfoByPetID(petID)
+            row.ico:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark"); row.ico:Show()
+            row.nm:SetText(("%d. %s |cffaaaaaaL%s|r"):format(d.index, name or "pet", tostring(level or "?")))
+            row.up:Hide(); row.dn:Hide()
+            row.del:SetScript("OnClick", function() ns.Queue:Remove(petID) end); row.del:Show()
+            row:SetScript("OnClick", nil)
+            row:Show()
         end
+    end
+    local maxOff = math.max(0, #rightDisp - TEAM_ROWS)
+    if (state.rightOffset or 0) > maxOff then state.rightOffset = maxOff end
+    if frame.teamsSlider then
+        frame.teamsSlider:SetMinMaxValues(0, maxOff)
+        frame.teamsSlider:SetValue(state.rightOffset or 0)
     end
 end
 
@@ -799,3 +813,8 @@ function UI:Show()
     if not frame then build() end
     frame:Show(); self:Refresh()
 end
+
+-- keep the loaded-team slots in sync when the journal changes (e.g. after a load)
+ns:On("PET_JOURNAL_LIST_UPDATE", function()
+    if frame and frame:IsShown() then UI:RefreshLoadout() end
+end)

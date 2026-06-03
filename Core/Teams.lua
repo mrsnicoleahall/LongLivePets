@@ -117,6 +117,7 @@ function Teams:Load(key)
         db().loaded = id
         ns:Print('Loaded "' .. t.name .. '".')
         if ns.Integration and t.script then ns.Integration:OnTeamLoaded(t) end
+        if ns.UI then ns.UI:RefreshLoadout(); ns.UI:RefreshRight() end
     end
 end
 
