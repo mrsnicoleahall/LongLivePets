@@ -335,9 +335,7 @@ function UI:BuildCollection()
             if mouse == "RightButton" then
                 UI:ShowMenu({
                     { text = "Slot into active slot", fn = function() placePet(p, state.activeSlot); UI:ShowCard(p) end },
-                    { text = "Add to leveling queue", fn = function()
-                        ns.Queue:Add(p.petID); ns:Print(p.name .. " added to the leveling queue.")
-                    end },
+                    { text = "Add to leveling queue", fn = function() ns.Queue:Add(p.petID) end },
                     { text = "Cycle marker", fn = function() ns.Markers:Cycle(p.speciesID) end },
                     { text = "Clear marker", fn = function() ns.Markers:Clear(p.speciesID) end },
                 })
@@ -348,7 +346,10 @@ function UI:BuildCollection()
                 UI:ShowCard(p)
             end
         end)
-        row:SetScript("OnEnter", function(self) if self.pet then UI:ShowCard(self.pet) end end)
+        row:SetScript("OnEnter", function(self)
+            if self.pet then UI:ShowCard(self.pet); ns.PetCard:Show(self, self.pet) end
+        end)
+        row:SetScript("OnLeave", function() ns.PetCard:Hide() end)
         row:Hide(); colRows[i] = row
     end
     frame.colEmpty = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -389,6 +390,17 @@ function UI:BuildLoadout()
             if not dropCursorPet(s) then state.activeSlot = s; UI:RefreshLoadout() end
         end)
         b:SetScript("OnReceiveDrag", function() dropCursorPet(s) end)
+        b:SetScript("OnEnter", function(self)
+            local petID = C_PetJournal.GetPetLoadOutInfo(s)
+            if not petID then return end
+            local speciesID, customName, level, _, _, _, _, name, _, petType = C_PetJournal.GetPetInfoByPetID(petID)
+            local rarity = select(5, C_PetJournal.GetPetStats(petID))
+            ns.PetCard:Show(self, {
+                petID = petID, speciesID = speciesID, name = customName or name,
+                level = level, petType = petType, rarity = rarity,
+            })
+        end)
+        b:SetScript("OnLeave", function() ns.PetCard:Hide() end)
         frame.slots[s] = b
     end
 

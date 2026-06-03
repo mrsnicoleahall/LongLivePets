@@ -45,8 +45,17 @@ end
 
 function Queue:Add(petID)
     if not petID then return end
-    if self:Contains(petID) then return end
+    if self:Contains(petID) then ns:Print("That pet is already in the leveling queue."); return end
+
+    local _, customName, lvl, _, _, _, _, name = C_PetJournal.GetPetInfoByPetID(petID)
+    local petName = customName or name or "Pet"
+    if lvl and lvl >= MAX_LEVEL then
+        ns:Print(petName .. " is already level 25 — the queue is only for pets that still need leveling (under 25).")
+        return
+    end
+
     table.insert(db().queue, petID)
+    ns:Print(petName .. " added to the leveling queue.")
     if ns.UI then ns.UI:Refresh() end
 end
 
@@ -64,8 +73,7 @@ function Queue:AddFromSlot(slot)
     if not slot then ns:Print("Usage: /llp queue add <slot 1-3>"); return end
     local petID = C_PetJournal.GetPetLoadOutInfo(slot)
     if not petID then ns:Print("Nothing in slot " .. slot .. "."); return end
-    self:Add(petID)
-    ns:Print("Added the pet in slot " .. slot .. " to the leveling queue.")
+    self:Add(petID)   -- Add prints its own confirmation / rejection
 end
 
 -- Ordered list of queued pets that still need leveling.
