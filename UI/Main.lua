@@ -415,16 +415,40 @@ function UI:BuildCollection()
     end)
     frame.search = search
 
-    -- Type dropdown (All + the 10 families)
-    local typeOpts = { { text = "Type: All", value = nil } }
-    for i = 1, 10 do typeOpts[#typeOpts + 1] = { text = ns.Types.NAME[i], value = i } end
-    local typeDD = makeDropdown(frame, 110, typeOpts, function(v)
-        state.typeIndex = v; UI:RefreshCollection()
-    end, "Type: All")
-    typeDD:SetPoint("TOPLEFT", 16, -84)
+    -- TYPE BAR: All + 10 color-coded type squares (matches the row badges and
+    -- renders on every client — no reliance on the type textures).
+    local typeBtns = {}
+    local function setTypeActive(v)
+        state.typeIndex = v
+        for _, b in ipairs(typeBtns) do b.selBg:SetShown(b.value == v) end
+        UI:RefreshCollection()
+    end
+    local function typeButton(w, x, label, color, value, tip)
+        local b = CreateFrame("Button", nil, frame)
+        b:SetSize(w, 18); b:SetPoint("TOPLEFT", x, -84)
+        b.selBg = b:CreateTexture(nil, "BACKGROUND", nil, 0)
+        b.selBg:SetPoint("TOPLEFT", -2, 2); b.selBg:SetPoint("BOTTOMRIGHT", 2, -2)
+        b.selBg:SetColorTexture(1, 0.85, 0.25, 1); b.selBg:Hide()
+        b.bg = b:CreateTexture(nil, "BACKGROUND", nil, 1); b.bg:SetAllPoints()
+        b.bg:SetColorTexture(color[1] * 0.55, color[2] * 0.55, color[3] * 0.55, 0.95)
+        b.txt = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        b.txt:SetPoint("CENTER"); b.txt:SetText(label); b.txt:SetTextColor(1, 1, 1)
+        b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
+        b.value = value
+        b:SetScript("OnClick", function() setTypeActive(value) end)
+        b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(tip); GameTooltip:Show() end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        typeBtns[#typeBtns + 1] = b
+        return b
+    end
+    typeButton(26, 16, "All", { 0.5, 0.5, 0.5 }, nil, "All types")
+    for i = 1, 10 do
+        typeButton(16, 46 + (i - 1) * 18, ns.Types:Abbr(i):sub(1, 2), ns.Types:Color(i), i, ns.Types.NAME[i])
+    end
+    typeBtns[1].selBg:Show()   -- "All" active by default
 
-    -- Level dropdown
-    local levelDD = makeDropdown(frame, 108, {
+    -- Level + Filter dropdowns
+    local levelDD = makeDropdown(frame, 104, {
         { text = "All levels", value = "all" },
         { text = "Level 25", value = "max" },
         { text = "Leveling (1-24)", value = "low" },
@@ -432,10 +456,9 @@ function UI:BuildCollection()
         state.maxOnly = (v == "max"); state.maxLevel = (v == "low") and 24 or nil
         UI:RefreshCollection()
     end, "All levels")
-    levelDD:SetPoint("LEFT", typeDD, "RIGHT", 6, 0)
+    levelDD:SetPoint("TOPLEFT", 16, -110)
 
-    -- More filters dropdown (its own row, so the filter bar stays in-column)
-    local moreDD = makeDropdown(frame, 110, {
+    local moreDD = makeDropdown(frame, 104, {
         { text = "All pets", value = "all" },
         { text = "Marked only", value = "marked" },
         { text = "Rare+ only", value = "rare" },
@@ -443,22 +466,22 @@ function UI:BuildCollection()
         state.markedOnly = (v == "marked"); state.rarity = (v == "rare") and 4 or nil
         UI:RefreshCollection()
     end, "Filter: all")
-    moreDD:SetPoint("TOPLEFT", 16, -108)
+    moreDD:SetPoint("LEFT", levelDD, "RIGHT", 6, 0)
 
     -- Counter dropdown: Strong Vs / Tough Vs a chosen enemy type
     local counterOpts = { { text = "Counter: off", short = "Counter: off", value = nil } }
     for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Strong vs " .. ns.Types.NAME[i], short = "Str: " .. ns.Types.NAME[i], value = { mode = "strong", t = i } } end
     for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Tough vs " .. ns.Types.NAME[i], short = "Tgh: " .. ns.Types.NAME[i], value = { mode = "tough", t = i } } end
-    local counterDD = makeDropdown(frame, 110, counterOpts, function(v)
+    local counterDD = makeDropdown(frame, 214, counterOpts, function(v)
         if not v then state.strongVs = nil; state.toughVs = nil
         elseif v.mode == "strong" then state.strongVs = v.t; state.toughVs = nil
         else state.toughVs = v.t; state.strongVs = nil end
         UI:RefreshCollection()
     end, "Counter: off")
-    counterDD:SetPoint("LEFT", moreDD, "RIGHT", 6, 0)
+    counterDD:SetPoint("TOPLEFT", 16, -134)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 16, -134); list:SetSize(210, ROW_H * COL_ROWS)
+    list:SetPoint("TOPLEFT", 16, -160); list:SetSize(210, ROW_H * COL_ROWS)
     list:EnableMouseWheel(true)
     for i = 1, COL_ROWS do
         local row = CreateFrame("Button", nil, list)
@@ -757,6 +780,16 @@ function UI:BuildTeams()
         row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
         local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(20, 20); ico:SetPoint("LEFT", 0, 0); row.ico = ico
+        -- a team row shows its 3 pet portraits on the left (Rematch-style)
+        row.pics = {}
+        for k = 1, 3 do
+            local pic = row:CreateTexture(nil, "ARTWORK")
+            pic:SetSize(24, 24); pic:SetPoint("LEFT", 2 + (k - 1) * 26, 0); pic:SetTexCoord(unpack(ICON_CROP))
+            local bd = row:CreateTexture(nil, "BACKGROUND")
+            bd:SetPoint("TOPLEFT", pic, "TOPLEFT", -1, 1); bd:SetPoint("BOTTOMRIGHT", pic, "BOTTOMRIGHT", 1, -1)
+            pic.bd = bd; pic:Hide(); bd:Hide()
+            row.pics[k] = pic
+        end
         local nm = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         nm:SetPoint("LEFT", 24, 0); nm:SetPoint("RIGHT", -62, 0); nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); row.nm = nm
         local up  = btn(row, "^", 18, 18); up:SetPoint("RIGHT", -40, 0); row.up = up
@@ -927,6 +960,48 @@ end
 
 local function gkey(id) return id or "__ungrouped" end
 
+-- icon + rarity for a saved team-pet entry (petID preferred, else species)
+local function petEntryIcon(p)
+    if not p then return nil end
+    if p.petID and C_PetJournal.GetPetInfoByPetID then
+        local icon = select(9, C_PetJournal.GetPetInfoByPetID(p.petID))
+        local rarity = select(5, C_PetJournal.GetPetStats(p.petID))
+        if icon then return icon, rarity end
+    end
+    if p.speciesID and C_PetJournal.GetPetInfoBySpeciesID then
+        local icon = select(2, C_PetJournal.GetPetInfoBySpeciesID(p.speciesID))
+        if icon then return icon end
+    end
+end
+
+-- anchor a row's name fontstring (clearing prior points) to leave room for
+-- whatever sits on its left (team portraits vs a single icon vs nothing)
+local function setNameLeft(row, x)
+    row.nm:ClearAllPoints()
+    row.nm:SetPoint("LEFT", row, "LEFT", x, 0)
+    row.nm:SetPoint("RIGHT", row, "RIGHT", -62, 0)
+end
+
+local function hideTeamPics(row)
+    if not row.pics then return end
+    for k = 1, 3 do row.pics[k]:Hide(); row.pics[k].bd:Hide() end
+end
+
+local function showTeamPics(row, team)
+    if not row.pics then return end
+    local pets = team and team.pets
+    for k = 1, 3 do
+        local pic = row.pics[k]
+        local icon, rarity = petEntryIcon(pets and pets[k])
+        if icon then
+            pic:SetTexture(icon)
+            local rc = RARITY_COLOR[rarity or 2] or RARITY_COLOR[2]
+            pic.bd:SetColorTexture(rc[1], rc[2], rc[3], 1); pic.bd:Show()
+            pic:Show()
+        else pic:Hide(); pic.bd:Hide() end
+    end
+end
+
 function UI:RefreshTeams()
     if not frame then return end
     frame.teamsHint:SetText("Click a group to expand/collapse. Right-click a group for options.")
@@ -963,7 +1038,7 @@ function UI:RenderRight()
         if not d then
             row:Hide()
         elseif d.header then
-            row.ico:Hide(); clearPetRow(row)
+            row.ico:Hide(); clearPetRow(row); hideTeamPics(row); setNameLeft(row, 6)
             local arrow = d.collapsed and "|cffaaaaaa▶|r " or "|cffaaaaaa▼|r "
             local cnt = (d.count and d.count > 0) and ("  |cff888888(" .. d.count .. ")|r") or ""
             row.nm:SetText(arrow .. "|cffffd100" .. d.name .. "|r" .. cnt)
@@ -994,6 +1069,8 @@ function UI:RenderRight()
         elseif d.team then
             local t = d.team
             row.ico:Hide(); clearPetRow(row)
+            -- show the team's 3 pet portraits, name to their right
+            showTeamPics(row, ns.db.teams[t.id]); setNameLeft(row, 82)
             local label = t.name
             if t.loaded then label = "|cff44ff44>|r " .. label end
             if (t.wins + t.losses) > 0 then label = label .. (" |cffaaaaaa%d-%d|r"):format(t.wins, t.losses) end
@@ -1027,6 +1104,7 @@ function UI:RenderRight()
             local rarity = select(5, C_PetJournal.GetPetStats(petID))
             local pet = { petID = petID, speciesID = speciesID, name = customName or name or "pet",
                           level = level, petType = petType, icon = icon, rarity = rarity }
+            hideTeamPics(row); setNameLeft(row, 40)
             renderPetRow(row, pet)
             row.nm:SetText(pet.name)
             row.up:Hide(); row.dn:Hide(); row.del:Hide()

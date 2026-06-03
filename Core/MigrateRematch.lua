@@ -34,6 +34,63 @@ local function count(t)
     return n
 end
 
+-- tdBattlePetScript stores its Rematch-plugin scripts keyed by the Rematch
+-- teamID, each as { name=, code= }. The script's name is the team name, which
+-- is exactly what our Integration:Arm looks up. So during import we can re-link
+-- each team to its script automatically.
+local function rematchScriptNameFor(rematchTeamID)
+    local td = _G.TD_DB_BATTLEPETSCRIPT_GLOBAL
+    local R = td and td.global and td.global.scripts and td.global.scripts.Rematch
+    local e = R and rematchTeamID and R[rematchTeamID]
+    return type(e) == "table" and e.name or nil
+end
+
+-- Non-destructive: link tdBattlePetScript scripts to EXISTING LLP teams (for
+-- when teams were already imported). Matches a team to its script two ways:
+--   1. via the Rematch teamID (if Rematch data is loaded): team name -> Rematch
+--      teamID -> script  (covers renamed scripts too)
+--   2. by exact script-name == team-name  (works with only tdBattlePetScript)
+function M:LinkScripts()
+    local td = _G.TD_DB_BATTLEPETSCRIPT_GLOBAL
+    local R = td and td.global and td.global.scripts and td.global.scripts.Rematch
+    if type(R) ~= "table" or not next(R) then
+        ns:Print("No tdBattlePetScript scripts found. Enable |cffffd100tdBattlePetScript|r, |cffffd100/reload|r, then run |cffffd100/llp linkscripts|r again.")
+        return
+    end
+
+    -- script names that exist (for the name==name fallback)
+    local scriptByName = {}
+    for _, e in pairs(R) do
+        if type(e) == "table" and e.name then scriptByName[e.name:lower()] = e.name end
+    end
+
+    -- team-name -> script-name via the Rematch teamID map (most precise)
+    local viaTeamID = {}
+    local RT = _G.Rematch5SavedTeams
+    if type(RT) == "table" then
+        for tid, t in pairs(RT) do
+            if type(t) == "table" and t.name then
+                local e = R[tid]
+                if type(e) == "table" and e.name then viaTeamID[t.name:lower()] = e.name end
+            end
+        end
+    end
+
+    local n = 0
+    for _, team in pairs(ns.db.teams) do
+        if team.name then
+            local key = team.name:lower()
+            local sn = viaTeamID[key] or scriptByName[key]
+            if sn and team.script ~= sn then team.script = sn; n = n + 1 end
+        end
+    end
+    ns:Print(("Linked |cff44ff44%d|r team(s) to tdBattlePetScript scripts."):format(n))
+    if not next(viaTeamID) then
+        ns:Print("(Enable |cffffd100Rematch [Community]|r too and re-run to also match scripts that were renamed.)")
+    end
+    if ns.UI then ns.UI:Refresh() end
+end
+
 function M:Run()
     local RT = _G.Rematch5SavedTeams
     local RG = _G.Rematch5SavedGroups
@@ -75,7 +132,7 @@ function M:Run()
     end
 
     -- 3. teams (each wrapped so one bad team can't abort the whole import)
-    local nTeams, nPets = 0, 0
+    local nTeams, nPets, nScripts = 0, 0, 0
     for tid, t in pairs(RT) do
         if type(t) == "table" and t.name then
             pcall(function()
@@ -101,6 +158,9 @@ function M:Run()
                     -- assign group directly from the id map (most reliable)
                     if t.groupID and gmap[t.groupID] then team.group = gmap[t.groupID] end
                     if order[tid] then team.order = order[tid] end
+                    -- re-link the tdBattlePetScript script for this team, if any
+                    local scriptName = rematchScriptNameFor(tid)
+                    if scriptName then team.script = scriptName; nScripts = nScripts + 1 end
                     if type(t.targets) == "table" then
                         team.targets = {}
                         for _, npc in ipairs(t.targets) do
@@ -116,7 +176,10 @@ function M:Run()
         end
     end
 
-    ns:Print(("Imported |cff44ff44%d teams|r and |cff44ff44%d groups|r from Rematch (%d pets, plus notes & targets)."):format(nTeams, nGroups, nPets))
-    ns:Print("Abilities default to each pet's current set; tdBattlePetScript scripts already carried over — re-link per team via right-click → Set script if you used them.")
+    ns:Print(("Imported |cff44ff44%d teams|r and |cff44ff44%d groups|r from Rematch (%d pets, %d scripts linked)."):format(nTeams, nGroups, nPets, nScripts))
+    if nScripts > 0 then
+        ns:Print(("Auto-linked |cff44ff44%d|r tdBattlePetScript scripts by team. Load a team and start a battle to arm its script."):format(nScripts))
+    end
+    ns:Print("Abilities: LLP remembers each team's ability picks when you Save it. Imported teams use each pet's current abilities until you re-save them (Rematch's packed ability data can't be decoded safely).")
     if ns.UI then ns.UI:Refresh() end
 end

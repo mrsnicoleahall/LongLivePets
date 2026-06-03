@@ -389,6 +389,11 @@ _G.Rematch5SavedTeams = {
   ["team:1"] = { name = "Imp A", pets = { "BattlePet-0-TEST1", "BattlePet-0-TEST2", 0 }, groupID = "group:1", notes = "hi", targets = { 555 } },
   ["team:2"] = { name = "Imp B", pets = { "BattlePet-0-TEST1", "random:9", "random:9" } },
 }
+-- tdBattlePetScript Rematch-plugin scripts keyed by Rematch teamID (the script
+-- name may differ from the team name; we link by the script's own name).
+_G.TD_DB_BATTLEPETSCRIPT_GLOBAL = { global = { scripts = { Rematch = {
+  ["team:1"] = { name = "Imp A script v2", code = "use(#1)" },
+} } } }
 ns.MigrateRematch:Run()
 local _, ta = ns.Teams:GetByName("Imp A")
 check(ns.Teams:GetByName("Imp B") ~= nil, "both Rematch teams imported")
@@ -398,7 +403,20 @@ check(ta and ta.pets[3] == nil, "empty/0 slot left empty")
 check(ta and ta.notes == "hi", "notes migrated")
 check(ta and ta.group == ns.Groups:Resolve("Dungeons"), "team assigned to its migrated group")
 check(ta and ta.targets and ta.targets[555], "target npc migrated")
+check(ta and ta.script == "Imp A script v2", "tdBattlePetScript script linked by Rematch teamID")
+local _, tb = ns.Teams:GetByName("Imp B")
+check(tb and tb.script == nil, "team without a Rematch script stays unlinked")
+
+-- LinkScripts: non-destructive re-link of an already-imported team. Clear the
+-- script, drop Rematch data, keep only the td DB with a name==name script.
+ta.script = nil
 _G.Rematch5SavedTeams = nil; _G.Rematch5SavedGroups = nil
+_G.TD_DB_BATTLEPETSCRIPT_GLOBAL = { global = { scripts = { Rematch = {
+  ["team:xyz"] = { name = "Imp A", code = "use(#1)" },   -- script name == team name
+} } } }
+ns.MigrateRematch:LinkScripts()
+check(ta and ta.script == "Imp A", "linkscripts links existing team by name (no Rematch data needed)")
+_G.TD_DB_BATTLEPETSCRIPT_GLOBAL = nil
 
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)
