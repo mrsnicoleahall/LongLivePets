@@ -32,12 +32,18 @@ end
 function Targets:CurrentNpcID()
     -- Never read the live target while a pet battle is up: the enemy's GUID is
     -- a secret value on Midnight and touching it taints us. Use the id we
-    -- cached from the last time we targeted them out of battle.
+    -- cached from the last time we targeted a normal NPC out of battle.
     if inPetBattle() then return self._lastNpcID end
     if not UnitExists("target") or UnitIsPlayer("target") then return nil end
+    -- Wild/companion battle pets carry SECRET unit data even out of combat (to
+    -- stop scouting). Reading their GUID/name taints us and blows up when a
+    -- battle opens — so never touch them. Tamers are normal NPCs, not battle pets.
+    if (UnitIsWildBattlePet and UnitIsWildBattlePet("target"))
+        or (UnitIsBattlePetCompanion and UnitIsBattlePetCompanion("target")) then
+        return self._lastNpcID
+    end
     local id = self:NpcIDFromGUID(UnitGUID("target"))
     self._lastNpcID = id
-    self._lastName  = id and UnitName and UnitName("target") or nil
     return id
 end
 

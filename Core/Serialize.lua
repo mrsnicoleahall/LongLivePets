@@ -147,7 +147,8 @@ function Serialize:Import(str)
     elseif str:match("^LLPBK1:") then
         payload = self.decode64(str:sub(8))
     else
-        return nil, "Unrecognized string (expected an LLP1: or LLPBK1: export)."
+        return nil, "That isn't a Long Live Pets string. Use the Export button (or /llp export <team>) to make one. "
+            .. "For Rematch teams use /llp importrematch; for a tdBattlePetScript script, paste it into tdBattlePetScript, then link it to a team via right-click → Set / edit script."
     end
     if not payload or payload == "" then return nil, "Could not decode that string." end
 

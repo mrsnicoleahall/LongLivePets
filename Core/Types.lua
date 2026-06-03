@@ -97,3 +97,11 @@ function Types:FamilyStrongVs(familyTypeIndex)
     local d = familyTypeIndex and STRONG[familyTypeIndex]
     return d and self.NAME[d] or nil
 end
+
+-- The attacker type this family RESISTS (takes -33% from) — i.e. it's tough vs.
+local TOUGH_BY_DEFENDER = {}
+for atk, def in pairs(WEAK) do TOUGH_BY_DEFENDER[def] = atk end
+function Types:FamilyToughVs(familyTypeIndex)
+    local a = familyTypeIndex and TOUGH_BY_DEFENDER[familyTypeIndex]
+    return a and self.NAME[a] or nil
+end

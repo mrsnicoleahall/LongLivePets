@@ -55,7 +55,11 @@ end
 -- them taints us and breaks secure addons (tdBattlePetScript). So we use the
 -- id/name Targets cached the last time we targeted them OUT of battle.
 ns:On("PET_BATTLE_OPENING_START", function()
-    EnemyIntel._pendingNpc  = ns.Targets and ns.Targets._lastNpcID or nil
-    EnemyIntel._pendingName = ns.Targets and ns.Targets._lastName or nil
+    -- ONLY touch the cached numeric npcID. We never read or store unit names:
+    -- a battle-pet name can be a secret value, and merely evaluating one (even
+    -- in an `or`) throws "string conversion on a secret value" and taints us,
+    -- which is what was breaking tdBattlePetScript's auto-run.
+    EnemyIntel._pendingNpc  = (ns.Targets and ns.Targets._lastNpcID) or nil
+    EnemyIntel._pendingName = nil
 end)
 ns:On("PET_BATTLE_OPENING_DONE", function() EnemyIntel:Capture() end)
