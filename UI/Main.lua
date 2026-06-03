@@ -208,7 +208,9 @@ local function build()
             c:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
                 edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14,
                 insets = { left = 3, right = 3, top = 3, bottom = 3 } })
-            c:SetBackdropColor(0.03, 0.04, 0.06, 0.92)
+            -- transparent fill: the window already has an opaque dark bg; a
+            -- tinted fill here renders OVER (and dims) the labels/stat text.
+            c:SetBackdropColor(0, 0, 0, 0)
             c:SetBackdropBorderColor(0.55, 0.5, 0.35, 0.9)
         end
         -- a gold divider under the column title for structure
@@ -456,7 +458,16 @@ function UI:BuildLoadout()
         b:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
         b.ico = b:CreateTexture(nil, "ARTWORK"); b.ico:SetSize(36, 36); b.ico:SetPoint("CENTER")
         b:SetScript("OnClick", function()
-            if not dropCursorPet(s) then state.activeSlot = s; UI:RefreshLoadout() end
+            if dropCursorPet(s) then return end
+            state.activeSlot = s
+            local petID = C_PetJournal.GetPetLoadOutInfo(s)
+            if petID then
+                local speciesID, customName, level, _, _, _, _, name, _, petType = C_PetJournal.GetPetInfoByPetID(petID)
+                local rarity = select(5, C_PetJournal.GetPetStats(petID))
+                UI:ShowCard({ petID = petID, speciesID = speciesID, name = customName or name,
+                              level = level, petType = petType, rarity = rarity })
+            end
+            UI:RefreshLoadout()
         end)
         b:SetScript("OnReceiveDrag", function() dropCursorPet(s) end)
         b:SetScript("OnEnter", function(self)
