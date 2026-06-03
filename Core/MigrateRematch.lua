@@ -143,6 +143,10 @@ function M:Run()
                         if type(p) == "string" and p:find("^BattlePet%-") then
                             pets[slot] = { petID = p, speciesID = speciesOf(p) }
                             nPets = nPets + 1
+                        elseif type(p) == "string" and p:find("^random") then
+                            -- Rematch "random" = a leveling/wildcard slot; keep it
+                            -- as a leveling slot so the team still has 3 slots.
+                            pets[slot] = { leveling = true }
                         end
                     end
                 end

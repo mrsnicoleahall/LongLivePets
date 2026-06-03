@@ -437,5 +437,15 @@ check(ct and ct.pets[2] and ct.pets[2].speciesID == 746 and ct.pets[3] and ct.pe
   "all three team pets read from script (746,472)")
 check(ct and ct.scriptCode and ct.scriptCode:find("change%(next%)"), "raw script code stored on the team")
 
+-- export the current team (with species + script) and re-import it
+local estr = ns.Serialize:ExportStrategy(ct)
+check(estr and estr:find("BEGIN PET BATTLE SCRIPT") and estr:find(":730:"), "export includes species + script block")
+wipe(ns.db.teams); ns.db.nextID = 500
+local en = ns.Serialize:Import(estr)
+check(en == 1, "exported strategy re-imports")
+local _, ct2 = ns.Teams:GetByName("Crypt Fiend")
+check(ct2 and ct2.pets[1] and ct2.pets[1].speciesID == 730 and ct2.pets[3] and ct2.pets[3].speciesID == 472,
+  "re-import reads species from the header (round-trip)")
+
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

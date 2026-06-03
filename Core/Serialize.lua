@@ -132,6 +132,32 @@ function Serialize:ExportTeam(teamKey)
     return self:EncodeTeam(t)
 end
 
+-- Export ONE team as a shareable strategy string: a header (name + the 3 pet
+-- species) plus, if the team has one, its tdBattlePetScript code wrapped in the
+-- standard BEGIN/END markers (the universal format tdBattlePetScript and
+-- wow-petguide understand). Round-trips back through Import.
+function Serialize:ExportStrategy(team)
+    if not team then return nil end
+    local sp = {}
+    for slot = 1, 3 do
+        local p = team.pets and team.pets[slot]
+        local id = p and p.speciesID
+        if not id and p and p.petID and C_PetJournal and C_PetJournal.GetPetInfoByPetID then
+            id = (C_PetJournal.GetPetInfoByPetID(p.petID))
+        end
+        sp[slot] = id or 0
+    end
+    local code = team.scriptCode
+    if (not code or code == "") and ns.Integration and ns.Integration.GetScriptCode then
+        code = ns.Integration:GetScriptCode(team.script)
+    end
+    local header = ("%s:LLP:%d:%d:%d:N:"):format(team.name or "Team", sp[1], sp[2], sp[3])
+    if code and code ~= "" then
+        return header .. "\n-----BEGIN PET BATTLE SCRIPT-----\n" .. code .. "\n-----END PET BATTLE SCRIPT-----"
+    end
+    return header
+end
+
 function Serialize:BackupAll()
     local lines = {}
     for _, t in pairs(ns.db.teams) do lines[#lines + 1] = teamToLine(t) end
@@ -149,9 +175,18 @@ function Serialize:ImportStrategy(str)
     local code = norm:match("BEGIN PET BATTLE SCRIPT[%-%s]*(.-)[%-%s]*END PET BATTLE SCRIPT")
     if code then code = code:gsub("^%s+", ""):gsub("%s+$", "") end
 
-    -- team pets = the species the script CONTROLS (change()/self()), not enemies
+    -- team pets: prefer explicit numeric species in the header (this is how OUR
+    -- export writes them); otherwise read the species the script CONTROLS
+    -- (change()/self() tokens — never enemy() tokens).
     local pets, seen, order = {}, {}, {}
-    if code then
+    local header = norm:match("^(.-)\n") or norm:match("^(.-)%-+BEGIN PET BATTLE SCRIPT") or norm
+    for field in header:gmatch("[^:]+") do
+        if field:match("^%d+$") then           -- a WHOLE-number field = a species (our own export)
+            local sid = tonumber(field)
+            if sid and sid > 0 and not seen[sid] then seen[sid] = true; order[#order + 1] = sid end
+        end
+    end
+    if #order == 0 and code then
         local function collect(pat)
             for sid in code:gmatch(pat) do
                 sid = tonumber(sid)

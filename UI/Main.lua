@@ -254,6 +254,18 @@ local function build()
     UI:BuildImportExport()
     UI:BuildRenameDialog()
     UI:BuildMenu()
+    UI:ApplyScale()
+end
+
+-- Scale the whole window up to fill most of the screen height (keeps the layout
+-- intact — everything just gets bigger, which fixes the "squished" feel).
+function UI:ApplyScale()
+    if not frame then return end
+    local sh = UIParent and UIParent.GetHeight and UIParent:GetHeight()
+    if type(sh) ~= "number" or sh <= 0 then return end
+    local scale = (sh * 0.92) / 700
+    if scale < 1 then scale = 1 elseif scale > 2.2 then scale = 2.2 end
+    frame:SetScale(scale)
 end
 
 -- ---- Heal Pets + Pet Bandage (secure buttons in the title bar) ------------
@@ -854,9 +866,13 @@ function UI:BuildTeams()
 
     -- bottom row: separate Export / Import. (Send-to-player still works via a
     -- team's right-click menu; the always-visible send box is gone.)
-    local exportB = btn(frame, "Export all", 104, 22); exportB:SetPoint("BOTTOMLEFT", 500, 16)
+    local exportB = btn(frame, "Export team", 104, 22); exportB:SetPoint("BOTTOMLEFT", 500, 16)
     exportB:SetScript("OnClick", function()
-        UI:ShowText("Export — copy this backup string", "export", ns.Serialize:BackupAll())
+        local id = ns.db and ns.db.loaded
+        local team = id and ns.db.teams[id]
+        if not team then ns:Print("Load a team first (click it on the right) to export it."); return end
+        UI:ShowText(('Export — "%s" (team + script) to share / wow-petguide / tdBattlePetScript'):format(team.name),
+            "export", ns.Serialize:ExportStrategy(team))
     end)
     local importB = btn(frame, "Import", 104, 22); importB:SetPoint("LEFT", exportB, "RIGHT", 8, 0)
     importB:SetScript("OnClick", function()
@@ -1050,15 +1066,19 @@ end
 local function showTeamPics(row, team)
     if not row.pics then return end
     local pets = team and team.pets
+    -- always render 3 slots; an empty/leveling slot (e.g. a Rematch "random"
+    -- slot) shows a dim placeholder box so the row reads as a full 3-pet team.
     for k = 1, 3 do
         local pic = row.pics[k]
         local icon, rarity = petEntryIcon(pets and pets[k])
         if icon then
-            pic:SetTexture(icon)
+            pic:SetTexture(icon); pic:SetDesaturated(false)
             local rc = RARITY_COLOR[rarity or 2] or RARITY_COLOR[2]
-            pic.bd:SetColorTexture(rc[1], rc[2], rc[3], 1); pic.bd:Show()
-            pic:Show()
-        else pic:Hide(); pic.bd:Hide() end
+            pic.bd:SetColorTexture(rc[1], rc[2], rc[3], 1); pic.bd:Show(); pic:Show()
+        else
+            pic:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark"); pic:SetDesaturated(true)
+            pic.bd:SetColorTexture(0.18, 0.18, 0.22, 1); pic.bd:Show(); pic:Show()
+        end
     end
 end
 

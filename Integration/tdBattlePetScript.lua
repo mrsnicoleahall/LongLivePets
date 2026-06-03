@@ -80,6 +80,24 @@ function Integration:Arm(team, quiet)
     return false
 end
 
+-- Return the raw code of a saved tdBattlePetScript by name (reads the saved DB
+-- directly, across all plugins), or nil. Used when exporting a team's script.
+function Integration:GetScriptCode(name)
+    if not name or name == "" then return nil end
+    local td = _G.TD_DB_BATTLEPETSCRIPT_GLOBAL
+    local scripts = td and td.global and td.global.scripts
+    if type(scripts) ~= "table" then return nil end
+    for _, plugin in pairs(scripts) do
+        if type(plugin) == "table" then
+            for _, e in pairs(plugin) do
+                if type(e) == "table" and e.name == name and e.code and e.code ~= "" then
+                    return e.code
+                end
+            end
+        end
+    end
+end
+
 -- Associate (or clear) a script name on a team.
 function Integration:SetScript(teamKey, scriptName)
     local _, t = ns.Teams:Resolve(teamKey)
