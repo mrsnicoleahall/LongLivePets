@@ -98,6 +98,24 @@ function Integration:GetScriptCode(name)
     end
 end
 
+-- Create (or overwrite) a tdBattlePetScript script from raw code, named `name`,
+-- in its "Base" plugin — the same path its own importer uses, so it persists and
+-- can be armed. Returns true on success. All wrapped: if its API shifts we just
+-- return false and the caller falls back to showing the code to paste manually.
+function Integration:ImportScript(name, code)
+    if not self:IsAvailable() or not name or name == "" or not code or code == "" then return false end
+    local a = addon()
+    local ok = pcall(function()
+        local plugin = a.GetPlugin and a:GetPlugin("Base")
+        local ScriptClass = a.GetClass and a:GetClass("Script")
+        if not plugin or not ScriptClass then error("tdBattlePetScript API unavailable") end
+        local key = "llp:" .. name
+        local script = ScriptClass:New({ name = name, code = code }, plugin, key)
+        plugin:AddScript(key, script)   -- registers at runtime + persists to its SV
+    end)
+    return ok
+end
+
 -- Associate (or clear) a script name on a team.
 function Integration:SetScript(teamKey, scriptName)
     local _, t = ns.Teams:Resolve(teamKey)

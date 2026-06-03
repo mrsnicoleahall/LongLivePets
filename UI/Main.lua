@@ -182,7 +182,7 @@ local function build()
     frame = CreateFrame("Frame", "LongLivePetsFrame", UIParent, "BackdropTemplate")
     frame:SetSize(880, 700)
     frame:SetPoint("CENTER")
-    frame:SetFrameStrata("HIGH")
+    frame:SetFrameStrata("DIALOG")   -- above the AddOns list / achievements etc.
     frame:SetMovable(true); frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
@@ -263,8 +263,10 @@ function UI:ApplyScale()
     if not frame then return end
     local sh = UIParent and UIParent.GetHeight and UIParent:GetHeight()
     if type(sh) ~= "number" or sh <= 0 then return end
-    local scale = (sh * 0.92) / 700
-    if scale < 1 then scale = 1 elseif scale > 2.2 then scale = 2.2 end
+    -- a gentle bump for legibility — NOT screen-filling (that overlapped other
+    -- windows and was unusable). ~80% of screen height, capped at 1.25x.
+    local scale = (sh * 0.80) / 700
+    if scale < 1 then scale = 1 elseif scale > 1.25 then scale = 1.25 end
     frame:SetScale(scale)
 end
 
@@ -287,8 +289,10 @@ function UI:BuildPetCare()
     -- Heal Pets
     local healName, healIcon = spellInfo(REVIVE_SPELL)
     local heal = CreateFrame("Button", "LongLivePetsHealBtn", frame, "SecureActionButtonTemplate")
-    heal:SetSize(26, 26)
-    heal:SetPoint("RIGHT", frame.closeBtn, "LEFT", -2, 0)
+    heal:SetSize(24, 24)
+    -- sit in the bottom button row, just right of Import
+    if frame.importBtn then heal:SetPoint("LEFT", frame.importBtn, "RIGHT", 14, 0)
+    else heal:SetPoint("RIGHT", frame.closeBtn, "LEFT", -2, 0) end
     heal:SetAttribute("type", "spell"); heal:SetAttribute("spell", healName or "Revive Battle Pets")
     heal:RegisterForClicks("AnyUp", "AnyDown")
     local hi = heal:CreateTexture(nil, "ARTWORK"); hi:SetAllPoints(); hi:SetTexture(healIcon or 134376); hi:SetTexCoord(unpack(ICON_CROP))
@@ -296,7 +300,7 @@ function UI:BuildPetCare()
     local hb = heal:CreateTexture(nil, "BACKGROUND"); hb:SetPoint("TOPLEFT", -1, 1); hb:SetPoint("BOTTOMRIGHT", 1, -1); hb:SetColorTexture(0.5, 0.4, 0.1, 1)
     heal.cd = CreateFrame("Cooldown", nil, heal, "CooldownFrameTemplate"); heal.cd:SetAllPoints()
     heal:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText(healName or "Revive Battle Pets")
         GameTooltip:AddLine("Heal & revive all your battle pets (8-min cooldown).", .9, .9, .9, true)
         GameTooltip:Show()
@@ -306,7 +310,7 @@ function UI:BuildPetCare()
 
     -- Pet Bandage
     local band = CreateFrame("Button", "LongLivePetsBandageBtn", frame, "SecureActionButtonTemplate")
-    band:SetSize(26, 26); band:SetPoint("RIGHT", heal, "LEFT", -4, 0)
+    band:SetSize(24, 24); band:SetPoint("LEFT", heal, "RIGHT", 6, 0)
     band:SetAttribute("type", "item"); band:SetAttribute("item", "item:" .. BANDAGE_ITEM)
     band:RegisterForClicks("AnyUp", "AnyDown")
     local bi = band:CreateTexture(nil, "ARTWORK"); bi:SetAllPoints(); bi:SetTexture(itemIcon(BANDAGE_ITEM) or 133681); bi:SetTexCoord(unpack(ICON_CROP))
@@ -316,7 +320,7 @@ function UI:BuildPetCare()
     band.count:SetPoint("BOTTOMRIGHT", 1, 1)
     band.iconTex = bi
     band:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Battle Pet Bandage")
         GameTooltip:AddLine("Heal one battle pet. You have " .. itemCount(BANDAGE_ITEM) .. ".", .9, .9, .9, true)
         GameTooltip:Show()
@@ -878,6 +882,7 @@ function UI:BuildTeams()
     importB:SetScript("OnClick", function()
         UI:ShowText("Import — paste a team or backup string", "import", "")
     end)
+    frame.importBtn = importB
 end
 
 -- ---- inline import/export panel ------------------------------------------
@@ -900,9 +905,14 @@ function UI:BuildImportExport()
         local n, err, info = ns.Serialize:Import(v)
         ns:Print(n and ("Imported " .. n .. " team(s).") or err); p:Hide()
         if info and info.code then
-            ns:Print(('Created team "%s" with %d pet(s) + script.'):format(info.name, info.pets or 0))
-            UI:ShowText(('Paste this into tdBattlePetScript and name it "%s" — then loading the team runs it'):format(info.name),
-                "export", "-----BEGIN PET BATTLE SCRIPT-----\n" .. info.code .. "\n-----END PET BATTLE SCRIPT-----")
+            local pushed = ns.Integration and ns.Integration.ImportScript and ns.Integration:ImportScript(info.name, info.code)
+            if pushed then
+                ns:Print(('Created "%s" (%d pets) and loaded its script into tdBattlePetScript — start a battle on this team and it arms automatically.'):format(info.name, info.pets or 0))
+            else
+                ns:Print(('Created "%s" (%d pets). tdBattlePetScript isn\'t available to auto-load the script — copy it in manually:'):format(info.name, info.pets or 0))
+                UI:ShowText(('Paste this into tdBattlePetScript and name it "%s"'):format(info.name),
+                    "export", "-----BEGIN PET BATTLE SCRIPT-----\n" .. info.code .. "\n-----END PET BATTLE SCRIPT-----")
+            end
         end
     end)
     local cls = CreateFrame("Button", nil, p, "UIPanelCloseButton"); cls:SetPoint("TOPRIGHT", -4, -4)

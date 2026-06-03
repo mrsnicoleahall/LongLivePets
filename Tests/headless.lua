@@ -374,6 +374,20 @@ local _, scriptedTeam = ns.Teams:GetByName("Scripted")
 check(ns.Integration:FindScriptByName("MyScript") == fakeScript, "finds the saved script by name")
 check(ns.Integration:Arm(scriptedTeam) == true, "arm reports success")
 check(setScriptArg == fakeScript, "Director:SetScript received the script object")
+
+-- all-in-one script import (Integration:ImportScript via Base plugin)
+local added = {}
+local FakePlugin = { AddScript = function(_, key, script) added[key] = script end }
+local ScriptClass = { New = function(_, db, plugin, key)
+    return setmetatable({ db = db }, { __index = {
+        GetName = function(s) return s.db.name end, GetDB = function(s) return s.db end } })
+end }
+_G.tdBattlePetScript.GetPlugin = function(_, n) return n == "Base" and FakePlugin or nil end
+_G.tdBattlePetScript.GetClass  = function(_, n) return n == "Script" and ScriptClass or nil end
+check(ns.Integration:ImportScript("Crypt Fiend", "ability(Snap:356)") == true, "ImportScript creates + registers a script")
+check(added["llp:Crypt Fiend"] and added["llp:Crypt Fiend"]:GetName() == "Crypt Fiend", "imported script is named after the team")
+check(added["llp:Crypt Fiend"]:GetDB().code:find("Snap") ~= nil, "imported script carries the code")
+
 _G.tdBattlePetScript = nil; C_AddOns.IsAddOnLoaded = oldLoaded
 
 print("\n[22] combined name + ability search (single box)")
