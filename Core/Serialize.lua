@@ -196,6 +196,17 @@ function Serialize:ImportStrategy(str)
         collect("[Cc]hange%([^:%(%)]+:(%d+)%)")
         collect("self%([^:%(%)]+:(%d+)%)")
     end
+    -- Solo scripts name no pets (just use(ability:id) calls). Resolve the team
+    -- pet(s) from the abilities the script uses — find the owned species whose
+    -- ability list matches them.
+    if #order == 0 and code and ns.Roster and ns.Roster.FindSpeciesByAbilities then
+        local abil = {}
+        for id in code:gmatch("use%([^:%(%)]+:(%d+)%)")     do abil[#abil + 1] = tonumber(id) end
+        for id in code:gmatch("ability%([^:%(%)]+:(%d+)%)") do abil[#abil + 1] = tonumber(id) end
+        for _, sid in ipairs(ns.Roster:FindSpeciesByAbilities(abil, 3)) do
+            if not seen[sid] then seen[sid] = true; order[#order + 1] = sid end
+        end
+    end
     for i = 1, math.min(3, #order) do pets[i] = { speciesID = order[i] } end
 
     -- best-effort notes: the prose between the header flags and the script

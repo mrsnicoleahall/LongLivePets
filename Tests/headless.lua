@@ -461,5 +461,24 @@ local _, ct2 = ns.Teams:GetByName("Crypt Fiend")
 check(ct2 and ct2.pets[1] and ct2.pets[1].speciesID == 730 and ct2.pets[3] and ct2.pets[3].speciesID == 472,
   "re-import reads species from the header (round-trip)")
 
+-- SOLO strategy: script has no change()/self(), only use(ability:id). Resolve
+-- the team pet from its abilities (species 600 = Feline Familiar).
+mockPets["SOLO-1"] = { speciesID = 600, level = 25, name = "Feline Familiar", petType = 5, rarity = 4 }
+petOrder[#petOrder + 1] = "SOLO-1"
+speciesAbilities[600] = { 436, 535, 538 }
+local solo = "Plagued Critters:4NG9:211A9V:ZR0:ZR0:N:Feline Familiar soloed.\\n\\n"
+  .. "-----BEGIN PET BATTLE SCRIPT-----\\n"
+  .. "use(stone:436) [ self.aura(stone:435).duration < 2 ]\\n"
+  .. "standby [ enemy.aura(undead:242).exists ]\\n"
+  .. "use(pounce:535) [ enemy.hp.full ]\\n"
+  .. "use(devour:538) [ enemy.type = 5 ]\\n"
+  .. "use(pounce:535)\\n"
+  .. "-----END PET BATTLE SCRIPT-----"
+local soloN = ns.Serialize:Import(solo)
+check(soloN == 1, "solo strategy imports as one team")
+local _, pc = ns.Teams:GetByName("Plagued Critters")
+check(pc and pc.pets[1] and pc.pets[1].speciesID == 600, "solo team pet resolved from script abilities")
+check(pc and pc.scriptCode and pc.scriptCode:find("devour"), "solo script code stored")
+
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

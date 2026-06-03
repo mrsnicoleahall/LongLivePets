@@ -125,6 +125,32 @@ function Roster:SpeciesHasAbilityText(speciesID, term)
     return false
 end
 
+-- Given a set of ability IDs, return up to maxN owned speciesIDs whose ability
+-- list contains the most of them (needs >=2 to count). Used to resolve which
+-- pet a "solo" battle script belongs to, when the script names no pets.
+function Roster:FindSpeciesByAbilities(abilityIDs, maxN)
+    if not abilityIDs or #abilityIDs == 0 then return {} end
+    if not (C_PetJournal and C_PetJournal.GetNumPets and C_PetJournal.GetPetAbilityList) then return {} end
+    local want = {}
+    for _, id in ipairs(abilityIDs) do if id then want[id] = true end end
+    local seen, scored = {}, {}
+    for i = 1, C_PetJournal.GetNumPets() do
+        local _, speciesID, owned = C_PetJournal.GetPetInfoByIndex(i)
+        if owned and speciesID and not seen[speciesID] then
+            seen[speciesID] = true
+            local ids = {}
+            C_PetJournal.GetPetAbilityList(speciesID, ids, {})
+            local score = 0
+            for _, id in ipairs(ids) do if want[id] then score = score + 1 end end
+            if score >= 2 then scored[#scored + 1] = { s = speciesID, score = score } end
+        end
+    end
+    table.sort(scored, function(a, b) return a.score > b.score end)
+    local out = {}
+    for i = 1, math.min(maxN or 3, #scored) do out[i] = scored[i].s end
+    return out
+end
+
 -- Put a pet into a battle slot (used by the browser).
 function Roster:SlotPet(petID, slot)
     slot = tonumber(slot) or 1
