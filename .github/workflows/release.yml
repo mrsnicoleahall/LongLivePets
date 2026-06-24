@@ -1,0 +1,39 @@
+name: Package & attach release zip
+
+# Builds a WoW-ready zip (correctly-named folders, td as a sibling addon) and
+# attaches it to the GitHub release so users never have to grab the broken
+# auto-generated "Source code (zip)".
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to (re)build and attach the zip to (e.g. v0.19.2-alpha)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build addon zip
+        id: build
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          bash scripts/package.sh "$VERSION"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "zip=dist/LongLivePets-$VERSION.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Attach zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.build.outputs.tag }}
+          files: ${{ steps.build.outputs.zip }}
+          fail_on_unmatched_files: true

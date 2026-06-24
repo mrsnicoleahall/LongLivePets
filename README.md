@@ -88,10 +88,15 @@ acknowledgements at the bottom.
 
 ## Install
 
+📦 **Full step-by-step guide: [INSTALL.md](INSTALL.md).** Quick version below.
+
 This download contains **two addon folders**: `LongLivePets` (this addon) and
 `tdBattlePetScript` (the bundled MIT battle-script engine).
 
-1. Download the release zip (or clone this repo).
+1. On the [latest release](https://github.com/mrsnicoleahall/LongLivePets/releases/latest),
+   download the **`LongLivePets-x.y.z.zip`** asset — **not** "Source code (zip)".
+   (The source zip names its folder after the version and nests `tdBattlePetScript`
+   inside, so WoW won't load it.) Unzip it.
 2. Copy **both** `LongLivePets` and `tdBattlePetScript` into your AddOns folder:
    - **Windows:** `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns`
    - **Mac:** `/Applications/World of Warcraft/_retail_/Interface/AddOns`
