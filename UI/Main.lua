@@ -888,11 +888,14 @@ end
 -- ---- inline import/export panel ------------------------------------------
 function UI:BuildImportExport()
     local p = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    p:SetPoint("CENTER"); p:SetSize(420, 220); p:SetFrameStrata("DIALOG")
+    p:SetPoint("CENTER"); p:SetSize(420, 220); p:SetFrameStrata("FULLSCREEN_DIALOG")
+    -- Solid WHITE8X8 fill (not UI-DialogBox-Background, which renders transparent
+    -- on Midnight/12.0) so the world doesn't show through. Matches BuildRenameDialog.
     if p.SetBackdrop then
-        p:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 32,
-            insets = { left = 8, right = 8, top = 8, bottom = 8 } })
+        p:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 } })
+        p:SetBackdropColor(0.05, 0.05, 0.07, 1); p:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
     end
     p.title = p:CreateFontString(nil, "OVERLAY", "GameFontNormal"); p.title:SetPoint("TOP", 0, -12)
     local scroll = CreateFrame("ScrollFrame", nil, p, "InputScrollFrameTemplate")
