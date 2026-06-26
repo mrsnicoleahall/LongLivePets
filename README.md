@@ -4,7 +4,12 @@ A pet **team manager** for World of Warcraft: save the pets you've slotted as a
 named team, then reload that team in one click later. Built for **Midnight
 (Interface 12.x)**.
 
-> **Status: v0.9 (Alpha 2) — one window with right-click menus, notes, scripts, a leveling-queue tab, and a working battlescript hand-off.** Collection scrolls; teams + groups have right-click Edit/Delete; pick each pet's moves; auto-build counters. Open with `/llp` or the minimap button. Covered by a 67-check suite. **Alpha:** in active testing.
+> **Status: v2.0 — full UI redesign.** A calm dark theme with a single gold
+> accent, **custom circular pet-type icons**, a 3-card team-stat strip,
+> zebra-striped collection, one-row filters, and right-click management (no
+> per-row button clutter). Breed data refreshed to cover current-era pets. One
+> window with notes, scripts, a leveling-queue tab, and battlescript hand-off.
+> Open with `/llp` or the minimap button.
 
 This is an **original, independent project**. It is written from scratch and
 contains **no code from Rematch or any other addon**. Long Live Pets uses its
@@ -16,10 +21,13 @@ acknowledgements at the bottom.
 
 ## Features
 
+- **Clean, themed UI** — calm dark panels with a single gold accent, custom
+  circular pet-type icons, zebra-striped lists, and a team-stat strip. Built to
+  stay readable, not cluttered.
 - **One 3-panel window** — Collection · Loaded Team · Teams, all visible at
   once. The pet card, import/export, and share are inline — no separate windows.
-- **Drag-and-drop** — drag a pet onto a slot; drag teams to reorder (or use the
-  ▲▼ buttons). Click also works everywhere.
+- **Drag-and-drop** — drag a pet onto a slot; drag teams to reorder (or
+  right-click a team → Move up/down). Click also works everywhere.
 - **Pet markers** — right-click a pet to tag it with a raid icon (★/◆/🌙/…);
   filter the collection to just marked pets.
 - **Send-to-player** — select a team, type a name, **Send** — it arrives for any

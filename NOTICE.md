@@ -44,8 +44,17 @@ please open an issue and it will be addressed immediately.
 - **LibPetBreedInfo-1.0** — community library that determines a battle pet's
   breed (e.g. B/B, P/S) from its stats. A LibStub-embeddable library distributed
   for addon authors to bundle; included in `Libs/LibPetBreedInfo-1.0/` and used
-  to show breeds in tooltips and pet rows. Credit to its original author(s); if
-  the author wishes any change to its inclusion, please open an issue.
+  to show breeds in pet rows. The library's breed **math is unchanged**; its
+  bundled **base-stat data table was refreshed** from **BattlePetBreedID** (by
+  *MMOSimca*) so breeds resolve for current-era pet species. Credit to both the
+  original LibPetBreedInfo author(s) and to MMOSimca for the maintained data; if
+  either wishes any change to its inclusion, please open an issue.
+
+## Original artwork
+
+- The **pet-type icons** in `Textures/types/` (the circular family badges shown
+  in the type filter and on each pet row) are **original art created for this
+  project** by the addon author, and are covered by the project's MIT License.
 
 ## Trademarks / acknowledgements
 

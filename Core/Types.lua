@@ -43,6 +43,14 @@ Types.COLOR = {
 function Types:Color(i) return self.COLOR[i] or { 0.8, 0.8, 0.8 } end
 function Types:Abbr(i) return self.ABBR[i] or "?" end
 
+-- Long Live Pets' own custom type badges (Textures/types/<family>.png) — clean
+-- circular icons that read at any size. Used for the type filter bar and the
+-- per-pet type badge.
+function Types:Icon(i)
+    local n = self.NAME[i]
+    return n and ("Interface\\AddOns\\LongLivePets\\Textures\\types\\" .. n:lower() .. ".png") or nil
+end
+
 -- name (lowercase) -> index
 Types.INDEX = {}
 for i, n in pairs(Types.NAME) do Types.INDEX[n:lower()] = i end

@@ -17,7 +17,7 @@ local UI = {}
 ns.UI = UI
 ns.PetBrowser = UI
 
-local COL_ROWS, TEAM_ROWS = 12, 13
+local COL_ROWS, TEAM_ROWS = 13, 13
 local ROW_H = 42
 local ICON_CROP = { 0.07, 0.93, 0.07, 0.93 }  -- trims the baked black border off icons
 
@@ -59,12 +59,50 @@ local function panelTitle(parent, text, x)
     local fs = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     fs:SetPoint("TOPLEFT", x, -40)
     fs:SetText(text)
+    fs:SetTextColor(0.93, 0.78, 0.40)
     return fs
 end
-local function btn(parent, label, w, h)
-    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    b:SetSize(w, h or 20); b:SetText(label)
+-- Flat dark button styling — replaces the loud red Blizzard button art with a
+-- calm dark panel, or a gold one for primary actions (accent=true). Hovering
+-- lightens the fill. This single helper de-reds every button in the window.
+local BTN_BG, BTN_BGH, BTN_BD = { 0.13, 0.15, 0.19 }, { 0.20, 0.23, 0.30 }, { 0.30, 0.34, 0.42 }
+local GOLD, GOLD_H, GOLD_BD = { 0.80, 0.64, 0.24 }, { 0.92, 0.76, 0.34 }, { 0.95, 0.82, 0.45 }
+local function styleButton(b, accent)
+    if not b then return b end
+    if b.SetNormalTexture then b:SetNormalTexture("") end
+    if b.SetPushedTexture then b:SetPushedTexture("") end
+    if b.SetDisabledTexture then b:SetDisabledTexture("") end
+    if b.SetHighlightTexture then b:SetHighlightTexture("") end
+    if b.Left then b.Left:SetAlpha(0) end
+    if b.Middle then b.Middle:SetAlpha(0) end
+    if b.Right then b.Right:SetAlpha(0) end
+    if b.SetBackdrop then
+        b:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 11,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 } })
+        local bg, bd = (accent and GOLD or BTN_BG), (accent and GOLD_BD or BTN_BD)
+        b:SetBackdropColor(bg[1], bg[2], bg[3], 1)
+        b:SetBackdropBorderColor(bd[1], bd[2], bd[3], 1)
+        b:HookScript("OnEnter", function(self)
+            local h = accent and GOLD_H or BTN_BGH
+            if self.SetBackdropColor then self:SetBackdropColor(h[1], h[2], h[3], 1) end
+        end)
+        b:HookScript("OnLeave", function(self)
+            local g = accent and GOLD or BTN_BG
+            if self.SetBackdropColor then self:SetBackdropColor(g[1], g[2], g[3], 1) end
+        end)
+    end
+    local fs = b.GetFontString and b:GetFontString()
+    if fs then
+        if accent then fs:SetTextColor(0.12, 0.09, 0.02) else fs:SetTextColor(0.86, 0.86, 0.82) end
+    end
     return b
+end
+
+local function btn(parent, label, w, h)
+    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate, BackdropTemplate")
+    b:SetSize(w, h or 20); b:SetText(label)
+    return styleButton(b)
 end
 
 -- A small self-contained dropdown (no dependency on Blizzard dropdown
@@ -72,15 +110,17 @@ end
 -- pick. Returns the button; call dd:SelectText(text) to set the shown label.
 local openMenu
 local function makeDropdown(parent, w, options, onSelect, initialText)
-    local dd = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    local dd = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate, BackdropTemplate")
     dd:SetSize(w, 20); dd:SetText(initialText or "")
+    styleButton(dd)
     function dd:SelectText(t) self:SetText(t) end
     -- keep the button label clipped to the button so it never overflows
     local fs = dd.GetFontString and dd:GetFontString()
     if fs and fs.SetWidth then fs:SetWidth(w - 10); fs:SetWordWrap(false) end
 
     local menu = CreateFrame("Frame", nil, dd, "BackdropTemplate")
-    menu:SetFrameStrata("DIALOG"); menu:SetPoint("TOPLEFT", dd, "BOTTOMLEFT", 0, -2)
+    menu:SetFrameStrata("FULLSCREEN_DIALOG"); menu:SetToplevel(true)
+    menu:SetPoint("TOPLEFT", dd, "BOTTOMLEFT", 0, -2)
     if menu.SetBackdrop then
         menu:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
@@ -135,13 +175,14 @@ local function decoratePetRow(row)
     -- level badge, bottom-right of the portrait
     row.lvl = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.lvl:SetPoint("BOTTOMRIGHT", row.ico, "BOTTOMRIGHT", 3, -1)
-    -- TYPE badge: a small color-coded pill (always crisp; readable on dark bg).
+    -- TYPE: the pet-family icon, on a dim type-colored backing (the backing
+    -- still conveys the type if the icon texture is unavailable on this client).
     row.typeBg = row:CreateTexture(nil, "ARTWORK")
     row.typeBg:SetColorTexture(0, 0, 0, 0.55)
-    row.typeBg:SetSize(40, 16); row.typeBg:SetPoint("RIGHT", row, "RIGHT", -42, 0); row.typeBg:Hide()
-    row.typeBadge = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    row.typeBadge:SetPoint("CENTER", row.typeBg, "CENTER", 0, 0)
-    row.typeBadge:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    row.typeBg:SetSize(32, 32); row.typeBg:SetPoint("RIGHT", row, "RIGHT", -40, 0); row.typeBg:Hide()
+    row.typeIcon = row:CreateTexture(nil, "OVERLAY")
+    row.typeIcon:SetPoint("TOPLEFT", row.typeBg, "TOPLEFT", 0, 0)
+    row.typeIcon:SetPoint("BOTTOMRIGHT", row.typeBg, "BOTTOMRIGHT", 0, 0); row.typeIcon:Hide()
     -- breed (B/B, P/S …) on the far right
     row.breed = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     row.breed:SetPoint("RIGHT", row, "RIGHT", -6, 0); row.breed:SetWidth(32); row.breed:SetJustifyH("RIGHT")
@@ -155,12 +196,10 @@ local function renderPetRow(row, pet)
     row.border:SetColorTexture(rc[1], rc[2], rc[3], 1); row.border:Show()
     row.lvl:SetText(pet.level and tostring(pet.level) or ""); row.lvl:Show()
     row.nm:SetTextColor(rc[1], rc[2], rc[3])
-    if pet.petType and ns.Types.ABBR[pet.petType] then
-        local tc = ns.Types:Color(pet.petType)
-        row.typeBadge:SetText(ns.Types:Abbr(pet.petType))
-        row.typeBadge:SetTextColor(tc[1], tc[2], tc[3])
-        row.typeBg:Show()
-    else row.typeBg:Hide(); row.typeBadge:SetText("") end
+    if pet.petType and ns.Types.NAME[pet.petType] then
+        local icon = ns.Types:Icon(pet.petType)
+        if icon then row.typeIcon:SetTexture(icon); row.typeIcon:Show() else row.typeIcon:Hide() end
+    else row.typeIcon:Hide() end
     local breed = pet.breed or (ns.Breed and ns.Breed:Get(pet.petID))
     row.breed:SetText(breed or "")
 end
@@ -170,7 +209,7 @@ local function clearPetRow(row)
     if row.border then row.border:Hide() end
     if row.lvl then row.lvl:SetText("") end
     if row.typeBg then row.typeBg:Hide() end
-    if row.typeBadge then row.typeBadge:SetText("") end
+    if row.typeIcon then row.typeIcon:Hide() end
     if row.breed then row.breed:SetText("") end
     row.nm:SetTextColor(1, 1, 1)
 end
@@ -453,16 +492,24 @@ function UI:BuildCollection()
         for _, b in ipairs(typeBtns) do b.selBg:SetShown(b.value == v) end
         UI:RefreshCollection()
     end
-    local function typeButton(w, x, label, color, value, tip)
+    local function typeButton(w, x, label, color, value, tip, iconPath)
         local b = CreateFrame("Button", nil, frame)
-        b:SetSize(w, 18); b:SetPoint("TOPLEFT", x, -84)
+        b:SetSize(w, iconPath and w or 22); b:SetPoint("TOPLEFT", x, -84)
         b.selBg = b:CreateTexture(nil, "BACKGROUND", nil, 0)
         b.selBg:SetPoint("TOPLEFT", -2, 2); b.selBg:SetPoint("BOTTOMRIGHT", 2, -2)
-        b.selBg:SetColorTexture(1, 0.85, 0.25, 1); b.selBg:Hide()
+        b.selBg:SetColorTexture(0.92, 0.78, 0.34, 1); b.selBg:Hide()
         b.bg = b:CreateTexture(nil, "BACKGROUND", nil, 1); b.bg:SetAllPoints()
-        b.bg:SetColorTexture(color[1] * 0.55, color[2] * 0.55, color[3] * 0.55, 0.95)
-        b.txt = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        b.txt:SetPoint("CENTER"); b.txt:SetText(label); b.txt:SetTextColor(1, 1, 1)
+        if iconPath then
+            -- the custom badge is self-contained (its own ring + color) — no tint
+            b.bg:SetColorTexture(0, 0, 0, 0)
+            b.icon = b:CreateTexture(nil, "ARTWORK")
+            b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+            b.icon:SetTexture(iconPath)
+        else
+            b.bg:SetColorTexture(0.18, 0.20, 0.25, 0.95)
+            b.txt = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            b.txt:SetPoint("CENTER"); b.txt:SetText(label); b.txt:SetTextColor(0.9, 0.9, 0.9)
+        end
         b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
         b.value = value
         b:SetScript("OnClick", function() setTypeActive(value) end)
@@ -473,12 +520,12 @@ function UI:BuildCollection()
     end
     typeButton(26, 16, "All", { 0.5, 0.5, 0.5 }, nil, "All types")
     for i = 1, 10 do
-        typeButton(16, 46 + (i - 1) * 18, ns.Types:Abbr(i):sub(1, 2), ns.Types:Color(i), i, ns.Types.NAME[i])
+        typeButton(24, 44 + (i - 1) * 25, nil, nil, i, ns.Types.NAME[i], ns.Types:Icon(i))
     end
     typeBtns[1].selBg:Show()   -- "All" active by default
 
-    -- Level + Filter dropdowns
-    local levelDD = makeDropdown(frame, 144, {
+    -- Level + Filter + Counter dropdowns — one compact row
+    local levelDD = makeDropdown(frame, 84, {
         { text = "All levels", value = "all" },
         { text = "Level 25", value = "max" },
         { text = "Leveling (1-24)", value = "low" },
@@ -488,7 +535,7 @@ function UI:BuildCollection()
     end, "All levels")
     levelDD:SetPoint("TOPLEFT", 16, -110)
 
-    local moreDD = makeDropdown(frame, 144, {
+    local moreDD = makeDropdown(frame, 84, {
         { text = "All pets", value = "all" },
         { text = "Marked only", value = "marked" },
         { text = "Rare+ only", value = "rare" },
@@ -496,22 +543,22 @@ function UI:BuildCollection()
         state.markedOnly = (v == "marked"); state.rarity = (v == "rare") and 4 or nil
         UI:RefreshCollection()
     end, "Filter: all")
-    moreDD:SetPoint("LEFT", levelDD, "RIGHT", 6, 0)
+    moreDD:SetPoint("LEFT", levelDD, "RIGHT", 4, 0)
 
     -- Counter dropdown: Strong Vs / Tough Vs a chosen enemy type
     local counterOpts = { { text = "Counter: off", short = "Counter: off", value = nil } }
     for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Strong vs " .. ns.Types.NAME[i], short = "Str: " .. ns.Types.NAME[i], value = { mode = "strong", t = i } } end
     for i = 1, 10 do counterOpts[#counterOpts + 1] = { text = "Tough vs " .. ns.Types.NAME[i], short = "Tgh: " .. ns.Types.NAME[i], value = { mode = "tough", t = i } } end
-    local counterDD = makeDropdown(frame, 294, counterOpts, function(v)
+    local counterDD = makeDropdown(frame, 112, counterOpts, function(v)
         if not v then state.strongVs = nil; state.toughVs = nil
         elseif v.mode == "strong" then state.strongVs = v.t; state.toughVs = nil
         else state.toughVs = v.t; state.strongVs = nil end
         UI:RefreshCollection()
     end, "Counter: off")
-    counterDD:SetPoint("TOPLEFT", 16, -134)
+    counterDD:SetPoint("LEFT", moreDD, "RIGHT", 4, 0)
 
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", 16, -160); list:SetSize(292, ROW_H * COL_ROWS)
+    list:SetPoint("TOPLEFT", 16, -136); list:SetSize(292, ROW_H * COL_ROWS)
     list:EnableMouseWheel(true)
     for i = 1, COL_ROWS do
         local row = CreateFrame("Button", nil, list)
@@ -522,6 +569,9 @@ function UI:BuildCollection()
             if self.pet and C_PetJournal.PickupPet then C_PetJournal.PickupPet(self.pet.petID) end
         end)
         row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        -- zebra striping: a faint backing on alternating rows for scannability
+        row.zebra = row:CreateTexture(nil, "BACKGROUND", nil, -2); row.zebra:SetAllPoints()
+        row.zebra:SetColorTexture(1, 1, 1, 0.03); row.zebra:Hide()
 
         local ico = row:CreateTexture(nil, "ARTWORK"); ico:SetSize(36, 36); ico:SetPoint("LEFT", 3, 0); row.ico = ico
         local mk = row:CreateTexture(nil, "OVERLAY"); mk:SetSize(14, 14); mk:SetPoint("TOPLEFT", ico, "TOPLEFT", -2, 2); row.mk = mk
@@ -653,12 +703,13 @@ function UI:BuildLoadout()
     -- center column header label
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", frame, "TOPLEFT", 468, -40); title:SetText("Current Team")
+    title:SetTextColor(0.93, 0.78, 0.40)
 
     -- loaded-team name + Save
     local nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
     nameBox:SetSize(150, 20); nameBox:SetPoint("TOPLEFT", 362, -64); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40)
     frame.nameBox = nameBox
-    local save = btn(frame, "Save", 56, 20); save:SetPoint("LEFT", nameBox, "RIGHT", 6, 0)
+    local save = btn(frame, "Save", 56, 20); styleButton(save, true); save:SetPoint("LEFT", nameBox, "RIGHT", 6, 0)
     save:SetScript("OnClick", function()
         local n = nameBox:GetText(); if n and n ~= "" then ns.Teams:SaveCurrent(n); nameBox:SetText("") end
     end)
@@ -742,12 +793,34 @@ function UI:BuildLoadout()
         frame.cards[s] = card
     end
 
-    -- TEAM FACTS (bottom) — totals + a plain-language read on the team
+    -- TEAM FACTS (bottom) — a 3-card stat strip + a plain-language read
     local factsLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     factsLabel:SetPoint("TOP", frame, "TOPLEFT", 468, -498); factsLabel:SetText("Team facts")
     centerDivider(-514)
+
+    frame.statBoxes = {}
+    local STAT_W, STAT_GAP, STAT_LABELS = 82, 7, { "Health", "Power", "Speed" }
+    local stripW = STAT_W * 3 + STAT_GAP * 2
+    local x0 = 468 - stripW / 2
+    for k = 1, 3 do
+        local box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+        box:SetSize(STAT_W, 40)
+        box:SetPoint("TOPLEFT", frame, "TOPLEFT", x0 + (k - 1) * (STAT_W + STAT_GAP), -520)
+        if box.SetBackdrop then
+            box:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10,
+                insets = { left = 2, right = 2, top = 2, bottom = 2 } })
+            box:SetBackdropColor(0.12, 0.13, 0.17, 0.95); box:SetBackdropBorderColor(0.30, 0.34, 0.42, 1)
+        end
+        local val = box:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        val:SetPoint("TOP", 0, -5); val:SetTextColor(0.88, 0.71, 0.31)
+        local lbl = box:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        lbl:SetPoint("BOTTOM", 0, 5); lbl:SetText(STAT_LABELS[k])
+        frame.statBoxes[k] = { val = val }
+    end
+
     local facts = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    facts:SetPoint("TOP", frame, "TOPLEFT", 468, -518); facts:SetWidth(256)
+    facts:SetPoint("TOP", frame, "TOPLEFT", 468, -566); facts:SetWidth(256)
     facts:SetJustifyH("CENTER"); facts:SetSpacing(3)
     frame.facts = facts
 end
@@ -853,7 +926,7 @@ function UI:BuildTeams()
             row.pics[k] = pic
         end
         local nm = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        nm:SetPoint("LEFT", 24, 0); nm:SetPoint("RIGHT", -62, 0)
+        nm:SetPoint("LEFT", 24, 0); nm:SetPoint("RIGHT", -10, 0)
         nm:SetJustifyH("LEFT"); nm:SetJustifyV("MIDDLE"); nm:SetWordWrap(true)
         if nm.SetMaxLines then nm:SetMaxLines(2) end
         row.nm = nm
@@ -973,8 +1046,8 @@ local function teamCommentary(h, p, s, n, ptypes)
     local function list(set) local o = {} for k in pairs(set) do o[#o + 1] = k end table.sort(o); return o end
     local strong, tough = list(strongSet), list(toughSet)
     local out = "This team is " .. table.concat(bits, ", ") .. "."
-    if #strong > 0 then out = out .. " Strong against " .. table.concat(strong, ", ") .. "." end
-    if #tough > 0 then out = out .. " Tough against " .. table.concat(tough, ", ") .. "." end
+    if #strong > 0 then out = out .. "  |cff66dd77Strong vs|r " .. table.concat(strong, ", ") .. "." end
+    if #tough > 0 then out = out .. "  |cffe07a7aTough vs|r " .. table.concat(tough, ", ") .. "." end
     return out
 end
 
@@ -991,9 +1064,18 @@ function UI:RefreshFacts()
             if pt and ns.Types.NAME[pt] then typeNames[#typeNames + 1] = ns.Types.NAME[pt]; ptypes[#ptypes + 1] = pt end
         end
     end
-    if n == 0 then frame.facts:SetText("No pets slotted.") return end
-    frame.facts:SetText(("|cffffffff%d|r HP   |cffffffff%d|r Power   |cffffffff%d|r Speed\n|cffaaaaaaTypes:|r %s\n\n|cffd0e6ff%s|r")
-        :format(h, p, s, table.concat(typeNames, ", "), teamCommentary(h, p, s, n, ptypes)))
+    if n == 0 then
+        if frame.statBoxes then for k = 1, 3 do frame.statBoxes[k].val:SetText("—") end end
+        frame.facts:SetText("No pets slotted.")
+        return
+    end
+    if frame.statBoxes then
+        frame.statBoxes[1].val:SetText(tostring(h))
+        frame.statBoxes[2].val:SetText(tostring(p))
+        frame.statBoxes[3].val:SetText(tostring(s))
+    end
+    frame.facts:SetText(("|cff888888%s|r\n\n%s")
+        :format(table.concat(typeNames, ", "), teamCommentary(h, p, s, n, ptypes)))
 end
 
 -- Render the visible window of colPets starting at state.colOffset.
@@ -1007,6 +1089,7 @@ function UI:RenderCollection()
             renderPetRow(row, p)
             row.mk:SetTexture(p.marker and ns.Markers:Texture(p.marker) or nil)
             row.nm:SetText(p.name)
+            if row.zebra then row.zebra:SetShown(i % 2 == 0) end
             row:Show()
         else row.pet = nil; row:Hide() end
     end
@@ -1109,7 +1192,7 @@ end
 
 function UI:RefreshTeams()
     if not frame then return end
-    frame.teamsHint:SetText("Click a group to expand/collapse. Right-click a group for options.")
+    frame.teamsHint:SetText("Right-click a group or team for options.")
     local groups, teams = ns.Groups:List(), ns.Teams:List()
     local byGroup, ungrouped = {}, {}
     for _, t in ipairs(teams) do
@@ -1154,10 +1237,7 @@ function UI:RenderRight()
             row.ico:Show()
             local cnt = (d.count and d.count > 0) and ("  |cff888888(" .. d.count .. ")|r") or ""
             row.nm:SetText("|cffffd100" .. d.name .. "|r" .. cnt)
-            row.up:Hide(); row.dn:Hide()
-            if d.groupID then
-                row.del:SetScript("OnClick", function() ns.Groups:Delete(d.groupID) end); row.del:Show()
-            else row.del:Hide() end
+            row.up:Hide(); row.dn:Hide(); row.del:Hide()
             local key = d.groupID or "__ungrouped"
             local function toggle() state.collapsed[key] = (state.collapsed[key] == false); UI:RefreshRight() end
             row:SetScript("OnClick", function(_, mouse)
@@ -1200,16 +1280,15 @@ function UI:RenderRight()
                         { text = "Set / edit script", fn = function() UI:PromptText("Script name for " .. t.name, team and team.script or "", function(v) ns.Integration:SetScript(t.id, v) end) end },
                         { text = "Test script", fn = function() ns.Integration:Test(t.id) end },
                         { text = "Send to player…", fn = function() UI:PromptText("Send \"" .. t.name .. "\" to player", "", function(who) if who and who ~= "" then ns.Comm:Send(t.id, who) end end) end },
+                        { text = "Move up", fn = function() UI:MoveTeam(t, -1) end },
+                        { text = "Move down", fn = function() UI:MoveTeam(t, 1) end },
                         { text = "Delete", fn = function() ns.Teams:Delete(t.id) end },
                     })
                 else
                     state.selectedTeam = t.id; ns.Teams:Load(t.id)
                 end
             end)
-            row.up:SetScript("OnClick", function() UI:MoveTeam(t, -1) end)
-            row.dn:SetScript("OnClick", function() UI:MoveTeam(t, 1) end)
-            row.del:SetScript("OnClick", function() ns.Teams:Delete(t.id) end)
-            row.up:Show(); row.dn:Show(); row.del:Show(); row:Show()
+            row.up:Hide(); row.dn:Hide(); row.del:Hide(); row:Show()
         elseif d.queue then
             local petID = d.queue
             local speciesID, customName, level, _, _, _, _, name, icon, petType = C_PetJournal.GetPetInfoByPetID(petID)
