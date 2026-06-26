@@ -397,7 +397,18 @@ function UI:BuildMenu()
         b.text:SetPoint("LEFT", 6, 0); b.text:SetJustifyH("LEFT")
         b:Hide(); m.buttons[i] = b
     end
-    m:SetScript("OnHide", function() m:Hide() end)
+    -- click-away catcher: a transparent full-screen button behind the menu.
+    -- Clicking anywhere off the menu closes it (the menu's own buttons sit
+    -- above the catcher, so item clicks still register).
+    local catcher = CreateFrame("Button", nil, UIParent)
+    catcher:SetAllPoints(UIParent)
+    catcher:SetFrameStrata("FULLSCREEN_DIALOG")
+    catcher:RegisterForClicks("AnyUp")
+    catcher:SetScript("OnClick", function() m:Hide() end)
+    catcher:Hide()
+    m.catcher = catcher
+    m:SetFrameLevel(catcher:GetFrameLevel() + 10)   -- menu draws above the catcher
+    m:SetScript("OnHide", function() catcher:Hide() end)
     m:Hide()
     frame.ctxMenu = m
 end
@@ -416,6 +427,7 @@ function UI:ShowMenu(items)
     m:SetHeight(#items * 18 + 8)
     local x, y = GetCursorPosition(); local s = UIParent:GetEffectiveScale()
     m:ClearAllPoints(); m:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
+    m.catcher:Show()
     m:Show()
 end
 
@@ -947,9 +959,9 @@ end
 local function teamCommentary(h, p, s, n, ptypes)
     local bits = {}
     local avgH, avgS = h / n, s / n
-    if avgH >= 1500 then bits[#bits + 1] = "great survivability"
-    elseif avgH >= 1200 then bits[#bits + 1] = "solid survivability"
-    else bits[#bits + 1] = "fragile but hits fast" end
+    if avgH >= 1500 then bits[#bits + 1] = "very durable"
+    elseif avgH >= 1200 then bits[#bits + 1] = "fairly sturdy"
+    else bits[#bits + 1] = "fragile" end
     if avgS >= 290 then bits[#bits + 1] = "very fast" elseif avgS <= 240 then bits[#bits + 1] = "on the slow side" end
     if (p / n) >= 290 then bits[#bits + 1] = "hard-hitting" end
 
@@ -960,7 +972,7 @@ local function teamCommentary(h, p, s, n, ptypes)
     end
     local function list(set) local o = {} for k in pairs(set) do o[#o + 1] = k end table.sort(o); return o end
     local strong, tough = list(strongSet), list(toughSet)
-    local out = "This team has " .. table.concat(bits, ", ") .. "."
+    local out = "This team is " .. table.concat(bits, ", ") .. "."
     if #strong > 0 then out = out .. " Strong against " .. table.concat(strong, ", ") .. "." end
     if #tough > 0 then out = out .. " Tough against " .. table.concat(tough, ", ") .. "." end
     return out
