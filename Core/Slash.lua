@@ -138,7 +138,7 @@ end
 
 handlers.export = function(rest)
     local str = ns.Serialize:ExportTeam(rest)
-    if str then ns.UI:ShowText("Export — copy this string", "export", str) end
+    if str then ns.UI:ShowText("Export: copy this string", "export", str) end
 end
 
 handlers.import = function(rest)
@@ -146,7 +146,7 @@ handlers.import = function(rest)
         local n, err = ns.Serialize:Import(rest)
         if n then ns:Print(("Imported %d team(s)."):format(n)) else ns:Print(err) end
     else
-        ns.UI:ShowText("Import — paste a team/backup string", "import", "", function(v)
+        ns.UI:ShowText("Import: paste a team/backup string", "import", "", function(v)
             local n, err = ns.Serialize:Import(v)
             if n then ns:Print(("Imported %d team(s)."):format(n)) else ns:Print(err) end
         end)
@@ -154,7 +154,7 @@ handlers.import = function(rest)
 end
 
 handlers.backup = function()
-    ns.UI:ShowText("Backup — copy this string", "export", ns.Serialize:BackupAll())
+    ns.UI:ShowText("Backup: copy this string", "export", ns.Serialize:BackupAll())
 end
 
 handlers.counter = function(rest)
@@ -238,5 +238,5 @@ SlashCmdList["LONGLIVEPETS"] = function(msg)
 end
 
 ns:On("PLAYER_LOGIN", function()
-    ns:Print(("v%s loaded — type |cffffd100/llp|r to open, |cffffd100/llp help|r for commands."):format(ns.version))
+    ns:Print(("v%s loaded. Type |cffffd100/llp|r to open, |cffffd100/llp help|r for commands."):format(ns.version))
 end)
