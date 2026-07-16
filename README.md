@@ -38,6 +38,12 @@ acknowledgements at the bottom.
 - **Teams** — save the slotted pets (with their chosen abilities) as a named
   team and reload them in one click. Rename, delete, list.
 - **Groups** — organize teams into folders; the window shows them grouped.
+- **Coming from Rematch?** One command — **`/llp importrematch`** — brings your
+  whole Rematch library across: every team (name, pets, notes, targets), your
+  groups (with order), and your battle scripts. Scripts are copied into
+  tdBattlePetScript's own storage and linked to each team, so they keep working
+  even after you uninstall Rematch. It's safe to run more than once (already
+  imported teams are skipped). Just enable Rematch, `/reload`, and run it.
 - **Notes** — attach a note to any team.
 - **Win/loss record** — per-team W-L, auto-tracked at the end of a battle (plus
   a manual `record` command).
@@ -89,6 +95,8 @@ acknowledgements at the bottom.
 /llp build                    auto-build a counter team for your target
 /llp send <team> => <player>  send a team to another LLP user
 /llp accept                   save a team someone sent you
+/llp importrematch            one-shot import of Rematch teams, groups + scripts
+/llp linkscripts              (re)link tdBattlePetScript scripts to your teams
 /llp record win|loss [team]
 /llp minimap                  toggle the minimap button
 /llp list

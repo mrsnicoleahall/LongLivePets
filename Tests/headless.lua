@@ -432,6 +432,30 @@ ns.MigrateRematch:LinkScripts()
 check(ta and ta.script == "Imp A", "linkscripts links existing team by name (no Rematch data needed)")
 _G.TD_DB_BATTLEPETSCRIPT_GLOBAL = nil
 
+-- meta groups (Rematch's "Ungrouped"/"Favorite" pseudo-groups) are skipped, and
+-- re-running the import doesn't duplicate teams (idempotent by name).
+wipe(ns.db.teams); wipe(ns.db.groups); ns.db.nextID = 1; ns.db.nextGroupID = 1
+_G.Rematch5SavedGroups = {
+  ["group:1"]      = { name = "Real Group", teams = { "team:1" } },
+  ["group:none"]   = { name = "Ungrouped Teams", meta = true, teams = {} },
+  ["group:favorites"] = { name = "Favorite Teams", meta = true, teams = {} },
+}
+_G.Rematch5SavedTeams = {
+  ["team:1"] = { name = "In A Group", pets = { "BattlePet-0-TEST1", 0, 0 }, groupID = "group:1" },
+  ["team:2"] = { name = "No Group",   pets = { "BattlePet-0-TEST2", 0, 0 }, groupID = "group:none" },
+}
+ns.MigrateRematch:Run()
+check(ns.Groups:GetByName("Ungrouped Teams") == nil and ns.Groups:GetByName("Favorite Teams") == nil,
+  "meta groups are not recreated as real groups")
+local _, ng = ns.Teams:GetByName("No Group")
+check(ng and ng.group == nil, "a team in Rematch's meta 'Ungrouped' group imports ungrouped")
+local teamCount = 0; for _ in pairs(ns.db.teams) do teamCount = teamCount + 1 end
+check(teamCount == 2, "two teams imported")
+ns.MigrateRematch:Run()   -- run it again
+local teamCount2 = 0; for _ in pairs(ns.db.teams) do teamCount2 = teamCount2 + 1 end
+check(teamCount2 == 2, "re-running the import is idempotent (no duplicates)")
+_G.Rematch5SavedTeams = nil; _G.Rematch5SavedGroups = nil
+
 print("\n[24] wow-petguide strategy import (team + script)")
 local strat = "Crypt Fiend:4JBV:1210NA:2213MQ:2227EO:N:Some notes here.\\n\\n"
   .. "-----BEGIN PET BATTLE SCRIPT-----\\n"
