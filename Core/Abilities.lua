@@ -50,6 +50,32 @@ function Abilities:GetLayout(loadoutSlot)
     return slots, petID, petLevel
 end
 
+-- Every ability a species can use, as { { id, name, icon, petType }, ... }.
+-- Works for any pet (owned or not) since it reads by speciesID rather than a
+-- loadout slot. `petType` is the ability's own damage family (which can differ
+-- from the pet's family — that's the whole point of the strong-vs highlight);
+-- it may be nil if the client can't report it, in which case callers should
+-- just skip the highlight for that ability.
+function Abilities:ForSpecies(speciesID)
+    if not speciesID or not (C_PetJournal and C_PetJournal.GetPetAbilityList) then return {} end
+    local ids, levels = {}, {}
+    C_PetJournal.GetPetAbilityList(speciesID, ids, levels)
+    local out, seen = {}, {}
+    for _, id in ipairs(ids) do
+        if id and id ~= 0 and not seen[id] then
+            seen[id] = true
+            local e = { id = id, name = "?" }
+            if C_PetBattles and C_PetBattles.GetAbilityInfoByID then
+                -- id, name, icon, maxCooldown, description, numTurns, petType, ...
+                local _, name, icon, _, _, _, petType = C_PetBattles.GetAbilityInfoByID(id)
+                e.name, e.icon, e.petType = name or "?", icon, petType
+            end
+            out[#out + 1] = e
+        end
+    end
+    return out
+end
+
 -- Choose ability `abilityID` for ability-slot `abilitySlot` (1-3) of the pet in
 -- battle slot `loadoutSlot`.
 function Abilities:Set(loadoutSlot, abilitySlot, abilityID)

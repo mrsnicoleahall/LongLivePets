@@ -620,7 +620,7 @@ function UI:BuildCollection()
             end
         end)
         row:SetScript("OnEnter", function(self)
-            if self.pet then UI:ShowCard(self.pet); ns.PetCard:Show(self, self.pet) end
+            if self.pet then UI:ShowCard(self.pet); ns.PetCard:Show(self, self.pet, { strongVs = state.strongVs }) end
         end)
         row:SetScript("OnLeave", function() ns.PetCard:Hide() end)
         row:Hide(); colRows[i] = row

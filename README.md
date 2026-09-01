@@ -39,11 +39,12 @@ acknowledgements at the bottom.
   team and reload them in one click. Rename, delete, list.
 - **Groups** — organize teams into folders; the window shows them grouped.
 - **Coming from Rematch?** One command — **`/llp importrematch`** — brings your
-  whole Rematch library across: every team (name, pets, notes, targets), your
-  groups (with order), and your battle scripts. Scripts are copied into
-  tdBattlePetScript's own storage and linked to each team, so they keep working
-  even after you uninstall Rematch. It's safe to run more than once (already
-  imported teams are skipped). Just enable Rematch, `/reload`, and run it.
+  whole Rematch library across: every team (name, pets, notes/strategy, targets),
+  your groups (with order), your **leveling queue**, and your battle scripts.
+  Scripts are copied into tdBattlePetScript's own storage and linked to each
+  team, so they keep working even after you uninstall Rematch. It's safe to run
+  more than once (already imported teams and queued pets are skipped). Just
+  enable Rematch, `/reload`, and run it.
 - **Notes** — attach a note to any team.
 - **Win/loss record** — per-team W-L, auto-tracked at the end of a battle (plus
   a manual `record` command).
@@ -60,7 +61,10 @@ acknowledgements at the bottom.
   the center panel shows all 3 ability slots × 2 options; click to choose
   (locked options show their unlock level).
 - **Pet cards** — hover any pet in the browser for a card with its stats
-  (health / power / speed), type, rarity, source, and flavor text.
+  (health / power / speed), type, rarity, source, and flavor text. With a
+  **Strong-vs** filter active, the card also lists the pet's abilities and
+  highlights the ones that actually hit that enemy type for +50% — including
+  off-family abilities the pet's type alone wouldn't reveal.
 - **Ability search** — flip the browser's search to "ability" mode (or use
   `/llp find ability <text>`) to list pets with a matching ability name or
   description — e.g. find everything that causes *Bleed*.

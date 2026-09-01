@@ -7,6 +7,7 @@
   a single `/llp importrematch` copies:
     - each team's name, its 3 pets, notes, and target NPCs
     - real groups (by name) plus the team -> group assignment and order
+    - your leveling queue (Rematch5Settings.LevelingQueue)
     - battle scripts: any tdBattlePetScript strategy attached to a team is copied
       into tdBattlePetScript's own "Base" plugin and linked to the team, so it
       keeps working even after you remove Rematch entirely.
@@ -220,12 +221,32 @@ function M:Run()
         end
     end
 
-    -- 4. one linking pass over every team (covers the copies above, teamID
+    -- 4. leveling queue: Rematch keeps its own ordered queue in
+    --    Rematch5Settings.LevelingQueue as { { petID=, ... }, ... }. Copy any
+    --    pets we don't already have queued (Queue:Prune drops maxed pets).
+    local nQueue = 0
+    local RS = _G.Rematch5Settings
+    local LQ = RS and RS.LevelingQueue
+    if type(LQ) == "table" and ns.Queue then
+        for _, e in ipairs(LQ) do
+            local petID = (type(e) == "table" and e.petID) or (type(e) == "string" and e)
+            if type(petID) == "string" and petID:find("^BattlePet%-") and not ns.Queue:Contains(petID) then
+                table.insert(ns.db.queue, petID)
+                nQueue = nQueue + 1
+            end
+        end
+        if nQueue > 0 and ns.Queue.Prune then ns.Queue:Prune() end
+    end
+
+    -- 5. one linking pass over every team (covers the copies above, teamID
     --    matches, renamed scripts, and any script name == team name).
     local nScripts = relinkAll()
 
     ns:Print(("Imported |cff44ff44%d teams|r and |cff44ff44%d groups|r from Rematch (%d pets, %d scripts linked).")
         :format(nTeams, nGroups, nPets, nScripts))
+    if nQueue > 0 then
+        ns:Print(("Added |cff44ff44%d|r pet(s) to your leveling queue."):format(nQueue))
+    end
     if nSkipped > 0 then
         ns:Print(("Skipped |cffffd100%d|r team(s) already in Long Live Pets (safe to re-run)."):format(nSkipped))
     end

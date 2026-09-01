@@ -16,7 +16,12 @@ local RARITY_COLOR = {
 
 -- Build the card as a list of line descriptors (testable without a real
 -- tooltip): { kind="title"|"line"|"double"|"wrap", ... }.
-function PetCard:BuildLines(pet)
+--   ctx.strongVs = an enemy type (index or name). When set, the card lists the
+--   pet's abilities and highlights the ones that hit that type for +50% — the
+--   way Rematch surfaced strong abilities on hover while a Strong-vs filter was
+--   active. An off-family ability that happens to counter the enemy lights up
+--   too, which is exactly when this is most useful.
+function PetCard:BuildLines(pet, ctx)
     local lines = {}
     lines[#lines + 1] = { kind = "title", text = pet.name or "Pet",
         color = RARITY_COLOR[pet.rarity or 2] }
@@ -58,13 +63,40 @@ function PetCard:BuildLines(pet)
             text = ("Family is strong vs: %s"):format(beats), color = { .5, .8, .5 } }
     end
 
+    -- Ability breakdown with strong-vs highlighting (shown while a Strong-vs
+    -- filter is active, per the enemy type in ctx.strongVs).
+    local strongVs = ctx and ctx.strongVs
+    if strongVs and pet.speciesID and ns.Abilities then
+        local abilities = ns.Abilities:ForSpecies(pet.speciesID)
+        if #abilities > 0 then
+            local enemyName = ns.Types.NAME[ns.Types:ToIndex(strongVs)] or "?"
+            lines[#lines + 1] = { kind = "gap" }
+            lines[#lines + 1] = { kind = "line",
+                text = ("Abilities (strong vs %s in green):"):format(enemyName),
+                color = { .7, .7, .7 } }
+            for _, ab in ipairs(abilities) do
+                local tname = ab.petType and ns.Types.NAME[ab.petType]
+                local label = ab.name or "?"
+                if tname then label = label .. "  |cff808080(" .. tname .. ")|r" end
+                if ns.Types:AbilityStrongVs(ab.petType, strongVs) then
+                    lines[#lines + 1] = { kind = "line", strong = true,
+                        text = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t " .. label,
+                        color = { .35, .95, .40 } }
+                else
+                    lines[#lines + 1] = { kind = "line",
+                        text = "     " .. label, color = { .55, .55, .55 } }
+                end
+            end
+        end
+    end
+
     return lines
 end
 
-function PetCard:Show(anchor, pet)
+function PetCard:Show(anchor, pet, ctx)
     if not GameTooltip or not pet then return end
     GameTooltip:SetOwner(anchor, "ANCHOR_RIGHT")
-    for _, l in ipairs(self:BuildLines(pet)) do
+    for _, l in ipairs(self:BuildLines(pet, ctx)) do
         local c = l.color or { 1, 1, 1 }
         if l.kind == "title" then
             GameTooltip:AddLine(l.text, c[1], c[2], c[3])

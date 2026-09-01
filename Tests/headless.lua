@@ -68,7 +68,8 @@ C_PetBattles = {
   IsInBattle = function() return inBattle end,
   GetAbilityInfoByID = function(id)
     local a = abilityById[id]; if not a then return end
-    return id, a.name, "icon", 0, a.desc, 1, 1, false
+    -- id, name, icon, maxCooldown, description, numTurns, petType, noStrongWeak
+    return id, a.name, "icon", 0, a.desc, 1, a.ptype or 1, false
   end,
   GetNumPets = function() return #enemyComp end,
   GetPetType = function(_, i) return enemyComp[i] end,
@@ -100,6 +101,7 @@ local petOrder = { "PET-A", "PET-B", "PET-C", "LVL-1", "LVL-2" }
 -- don't change owned counts; only resolvable via GetPetInfoByPetID)
 mockPets["BattlePet-0-TEST1"] = { speciesID = 777, level = 25, name = "Mig1", petType = 9, rarity = 4 }
 mockPets["BattlePet-0-TEST2"] = { speciesID = 888, level = 25, name = "Mig2", petType = 6, rarity = 4 }
+mockPets["BattlePet-0-QLOW"]  = { speciesID = 999, level = 10, name = "QLow", petType = 9, rarity = 4 }
 
 local slotPets
 local function setSlots(t) slotPets = t end
@@ -408,7 +410,14 @@ _G.Rematch5SavedTeams = {
 _G.TD_DB_BATTLEPETSCRIPT_GLOBAL = { global = { scripts = { Rematch = {
   ["team:1"] = { name = "Imp A script v2", code = "use(#1)" },
 } } } }
+_G.Rematch5Settings = { LevelingQueue = {
+  { petID = "BattlePet-0-QLOW" },    -- level 10, should be kept
+  { petID = "BattlePet-0-TEST1" },   -- level 25, should be pruned out
+} }
 ns.MigrateRematch:Run()
+check(ns.Queue:Contains("BattlePet-0-QLOW"), "Rematch leveling queue imported")
+check(not ns.Queue:Contains("BattlePet-0-TEST1"), "maxed pet pruned from imported queue")
+_G.Rematch5Settings = nil
 local _, ta = ns.Teams:GetByName("Imp A")
 check(ns.Teams:GetByName("Imp B") ~= nil, "both Rematch teams imported")
 check(ns.Groups:GetByName("Dungeons") ~= nil, "Rematch group created")
@@ -503,6 +512,27 @@ check(soloN == 1, "solo strategy imports as one team")
 local _, pc = ns.Teams:GetByName("Plagued Critters")
 check(pc and pc.pets[1] and pc.pets[1].speciesID == 600, "solo team pet resolved from script abilities")
 check(pc and pc.scriptCode and pc.scriptCode:find("devour"), "solo script code stored")
+
+print("\n[25] strong-vs ability highlight on the pet card")
+abilityById[50] = { name = "Gale",  desc = "A flying strike.",  ptype = 3 }  -- Flying beats Aquatic
+abilityById[51] = { name = "Douse", desc = "An aquatic splash.", ptype = 9 } -- Aquatic does NOT beat Aquatic
+speciesAbilities[900] = { 50, 51 }
+local svPet = { name = "Testmon", petType = 3, rarity = 4, level = 25, petID = "PET-A", speciesID = 900 }
+local svlines = ns.PetCard:BuildLines(svPet, { strongVs = 9 })   -- 9 = Aquatic
+local sawHeader, galeStrong, douseStrong = false, nil, nil
+for _, l in ipairs(svlines) do
+  if l.text and l.text:find("strong vs Aquatic") then sawHeader = true end
+  if l.text and l.text:find("Gale")  then galeStrong  = (l.strong == true) end
+  if l.text and l.text:find("Douse") then douseStrong = (l.strong == true) end
+end
+check(sawHeader, "card shows the strong-vs abilities header")
+check(galeStrong == true, "Flying ability (Gale) highlighted as strong vs Aquatic")
+check(douseStrong == false, "Aquatic ability (Douse) shown but not highlighted")
+check(ns.Types:AbilityStrongVs(3, 9) and not ns.Types:AbilityStrongVs(9, 9), "AbilityStrongVs: Flying beats Aquatic, Aquatic doesn't")
+local plain = ns.PetCard:BuildLines(svPet)   -- no ctx -> no abilities section
+local anyAbil = false
+for _, l in ipairs(plain) do if l.text and (l.text:find("Gale") or l.text:find("Douse")) then anyAbil = true end end
+check(not anyAbil, "abilities section omitted when no Strong-vs filter is active")
 
 print(("\n==== %d passed, %d failed ===="):format(PASS, FAIL))
 os.exit(FAIL == 0 and 0 or 1)

@@ -88,6 +88,14 @@ function Types:CounterFor(enemyType)
     }
 end
 
+-- Does an attack of family `abilityType` hit `enemyType` for +50%? Used to
+-- highlight the specific abilities that are strong against a chosen enemy type.
+function Types:AbilityStrongVs(abilityType, enemyType)
+    local a = self:ToIndex(abilityType)
+    local e = self:ToIndex(enemyType)
+    return a ~= nil and e ~= nil and STRONG[a] == e
+end
+
 -- The pet-family index that deals +50% to a given enemy type.
 function Types:StrongAttackerIndexVs(enemyType)
     local e = self:ToIndex(enemyType)
